@@ -1,0 +1,9 @@
+version: '3.7'
+
+services:
+  
+  teste:
+    image: hello-world
+    network_mode: bridge
+    labels:
+      br.com.sadman.namespace: "nome_do_grupo_do_individuo"    

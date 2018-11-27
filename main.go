@@ -13,8 +13,11 @@ import (
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/handlers"
+	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/matchers"
 	"github.com/kataras/iris"
 	"github.com/ory/ladon"
+
+	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters"
 
 	keto "github.com/ory/keto/sdk/go/keto/swagger"
 )
@@ -27,7 +30,8 @@ func main() {
 	// app.Done(after)
 	app.Post("/login", handlers.Login)
 	app.Any("*", before, ProxyHandler, after)
-	app.Run(iris.Addr(config.PORT))
+	app.Run(iris.Addr(config.Port)) //:8080
+
 }
 
 func httpClient(u string) *http.Client {
@@ -62,15 +66,15 @@ func extractTokenFromURL(ctx iris.Context) (token, tokenlessURL string, err erro
 }
 
 func validatePolicy(ctx iris.Context, tokenlessURL string) bool {
-	fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$ tokenlessURL ::::::>>>>>>> ", tokenlessURL)
+	// fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$ tokenlessURL ::::::>>>>>>> ", tokenlessURL)
 	// ABILIO SAYS: extrair essa nojeira para um struct com paredes de chumbo para evitar vazamento e contaminação de todo o cluster com esse "shenanigan"
 	dockerPath := strings.Split(strings.Join(strings.Split(tokenlessURL, "/")[4:], "/"), "?")[:1][0]
 	if strings.Contains(tokenlessURL, "_ping") {
 		return true
 	}
-	fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$ DOCKERPATH ::::::>>>>>>> ", dockerPath)
+	// fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$ DOCKERPATH ::::::>>>>>>> ", dockerPath)
 	urlServer := "http://172.24.40.63:4466"
-	fmt.Println("Testing API...")
+	// fmt.Println("Testing API...")
 	client := keto.NewWardenApiWithBasePath(urlServer)
 	result, _, err := client.IsSubjectAuthorized(keto.WardenSubjectAuthorizationRequest{
 		Action:   strings.ToUpper(ctx.Request().Method),
@@ -82,13 +86,45 @@ func validatePolicy(ctx iris.Context, tokenlessURL string) bool {
 		fmt.Printf("%v", err)
 		os.Exit(1)
 	}
-	fmt.Printf("Allowed: %t\n", result.Allowed)
+	// fmt.Printf("Allowed: %t\n", result.Allowed)
 	return result.Allowed
 }
 
 // ProxyHandler lero-lero
 func ProxyHandler(ctx iris.Context) {
-	println("Inside mainHandler")
+
+	// SAAPORRA
+
+	// log.Printf("Creating JS interpreter")
+	// js := otto.New()
+	// js.Set("ctx", ctx)
+	// js.Set("url", ctx.Request().URL.String())
+
+	// js.Set("abort", func(call otto.FunctionCall) otto.Value { //
+	// 	// fmt.Printf("Hello, %s.\n", call.Argument(0).String())
+	// 	// return otto.Value{}
+	// 	ctx.StatusCode(555)
+	// 	ctx.WriteString("Erro : deu merda")
+	// 	ctx.Next()
+	// 	return otto.Value{}
+	// })
+
+	// value, err := js.Run(
+	// 	`(
+	// 	function(teste){abc = 2 + 2;
+	// 	console.log("$$$$$$$$$$$$$$$$$$$ ", url)
+	// 	console.log("++++++++++++++ The value of abc is " + abc); // 4
+	// 	console.log("+_+_+_+ ", teste)
+	// 	abort();
+	// 	return false})(url)`)
+
+	// if ret, err := value.ToBoolean(); err == nil && !ret {
+	// 	return
+	// }
+
+	// SAPORRA
+
+	// println("Inside mainHandler")
 	// info := ctx.Values().GetString("info")
 	token, tokenlessURL, err := extractTokenFromURL(ctx)
 	fmt.Println("TOKEN :> ", token)
@@ -104,9 +140,9 @@ func ProxyHandler(ctx iris.Context) {
 	}
 	fmt.Println("ctx.Request().URL.RawQuery : ", ctx.Request().URL.String())
 	out, _ := httputil.DumpRequest(ctx.Request(), true)
-	fmt.Println(string(out))
+	fmt.Println("$$$$$$$$$$$$$$$ >>>>>>>>>>>>>>>>>>> REQUEST : \n", string(out))
 
-	isAllowed := validatePolicy(ctx, tokenlessURL)
+	isAllowed := true //validatePolicy(ctx, tokenlessURL)
 
 	if !isAllowed {
 		ctx.StatusCode(403)
@@ -118,8 +154,13 @@ func ProxyHandler(ctx iris.Context) {
 	}
 
 	request, newRequestError := http.NewRequest(ctx.Request().Method, tokenlessURL, ctx.Request().Body)
+
+	for key, value := range ctx.Request().Header {
+		request.Header[key] = value
+	}
+
 	if newRequestError != nil {
-		fmt.Println("erroe new request ::>> ", newRequestError)
+		fmt.Println("error new request ::>> ", newRequestError)
 	}
 	response, error := client.Do(request)
 
@@ -133,7 +174,33 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.WriteString("Erro parsear a resposta do token - " + erro.Error())
 	}
 
-	fmt.Println("response :: >> ", string(responseBody), error)
+	for key, value := range response.Header {
+		ctx.Header(key, value[0])
+	}
+
+	fmt.Println("$$$$$$$$$$$$$$$ >>>>>>>>>>>>>>>>>>> RESPONSE : \n", string(responseBody))
+
+	// if strings.HasSuffix(ctx.Request().URL.String(), "/services/create") {
+	// 	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+	// 	var idResponse models.IDResponse
+	// 	if err := ctx.ReadJSON(&idResponse); err != nil {
+	// 		ctx.StatusCode(iris.StatusBadRequest)
+	// 		ctx.WriteString(err.Error())
+	// 		return
+	// 	}
+	// }
+
+	// fmt.Println("response :: >> ", string(responseBody), error)
+
+	jsonMatcher := matchers.JSONMatcher{Query: "Config.Labels", ExpectedValue: "2"}
+
+	fmt.Println("################### jsonMatcher.Match()", jsonMatcher.Match(responseBody))
+
+	for _, filter := range filters.FilterMoldels {
+		fmt.Println(filter.Exec(ctx, string(responseBody)))
+	}
+
+	// ctx.Header("Api-Version", apiVersion)
 	ctx.ContentType("application/json")
 	ctx.StatusCode(response.StatusCode)
 	ctx.Write(responseBody)
@@ -150,4 +217,5 @@ func before(ctx iris.Context) {
 
 func after(ctx iris.Context) {
 	println("After the mainHandler")
+
 }
