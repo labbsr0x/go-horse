@@ -5,6 +5,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
+
+	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/security"
 
 	"github.com/kataras/iris"
 
@@ -17,16 +20,64 @@ var jsFilterFunctions []string
 // FilterMoldels lero lero
 var FilterMoldels []JsFilterModel
 
+// FiltersBefore lero lero
+var FiltersBefore []JsFilterModel
+
+// FiltersAfter lero lero
+var FiltersAfter []JsFilterModel
+
+// BodyOperation json body operation type
+type BodyOperation int
+
+const (
+	// Read read
+	Read BodyOperation = 0
+	// Write write
+	Write BodyOperation = 1
+)
+
+// Invoke invoke
+type Invoke int
+
+const (
+	// After After
+	After Invoke = 0
+	// Before After
+	Before Invoke = 1
+)
+
 // JsFilterModel lero-lero
 type JsFilterModel struct {
 	Name        string
 	Order       int64
 	PathPattern string
+	Invoke      Invoke
 	Function    string
+	regex       *regexp.Regexp
+}
+
+// JsFilterFunctionReturn lero-lero
+type JsFilterFunctionReturn struct {
+	Next      bool
+	Body      string
+	Operation BodyOperation
+}
+
+// MatchURL lero lero
+func (model JsFilterModel) MatchURL(ctx iris.Context) bool {
+	if model.regex == nil {
+		regex, error := regexp.Compile(model.PathPattern)
+		if error != nil {
+			fmt.Printf("ERRO AO CRIAR REGEX PARA DAR MATCH NA URL DO FILTRO : %s; PATTERN : %s\n", model.Name, model.PathPattern)
+		} else {
+			model.regex = regex
+		}
+	}
+	return model.regex.MatchString(ctx.RequestPath(false))
 }
 
 // ExecResponse lerol ero
-func (model JsFilterModel) ExecResponse(ctx iris.Context, response *http.Response) bool {
+func (model JsFilterModel) ExecResponse(ctx iris.Context, response *http.Response) JsFilterFunctionReturn {
 	body, erro := ioutil.ReadAll(response.Body)
 	if erro != nil {
 		fmt.Println("Erro parsear body para execução da função javascript ::>>" + erro.Error())
@@ -35,33 +86,104 @@ func (model JsFilterModel) ExecResponse(ctx iris.Context, response *http.Respons
 }
 
 // Exec lero lero
-func (model JsFilterModel) Exec(ctx iris.Context, body string) bool {
+func (model JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionReturn {
+
 	js := otto.New()
 	js.Set("url", ctx.Request().URL.Path)
 
 	funcRet, error := js.Call("JSON.parse", nil, body)
 	if error != nil {
 		fmt.Println("ERRO AO RODAR O JSON>PARSE ::::: ", error)
+		emptyBody, _ := js.Object("({})")
+		funcRet, _ = otto.ToValue(emptyBody)
 	}
 
 	js.Set("body", funcRet.Object())
 
-	returnValue, error := js.Run("(" + model.Function + ")(url, body)")
+	operation, error := js.Object("({READ : 0, WRITE : 1})")
+	if error != nil {
+		fmt.Println("ERRO AO CRIAR O JS OBJECT 'Operation'.", error)
+	}
+	js.Set("operation", operation)
+	js.Set("verifyPolicy", veryfyPolicyToJSContext)
+	js.Set("method", "GET")
 
-	ret, error := returnValue.ToBoolean()
+	returnValue, error := js.Run("(" + model.Function + ")(url, body, operation, method, verifyPolicy)")
 
 	if error != nil {
 		fmt.Println("Erro executar fn js ::>> ", error)
-		return false
 	}
 
-	return ret
+	result := returnValue.Object()
+
+	if error != nil {
+		fmt.Println("Erro executar ao tentar obter o valor de retorno da função js ::>> ", error)
+		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro sandman acl : \"" + error.Error() + "}"}
+	}
+
+	jsFunctionReturn := JsFilterFunctionReturn{}
+
+	if value, err := result.Get("next"); err == nil {
+		if value, err := value.ToBoolean(); err == nil {
+			jsFunctionReturn.Next = value
+		} else {
+			return errorReturnFilter(error)
+		}
+	} else {
+		return errorReturnFilter(error)
+	}
+
+	if value, err := result.Get("body"); err == nil {
+		if value, err := js.Call("JSON.stringify", nil, value); err == nil {
+			jsFunctionReturn.Body = value.String()
+		} else {
+			return errorReturnFilter(error)
+		}
+	} else {
+		return errorReturnFilter(error)
+	}
+
+	if value, err := result.Get("operation"); err == nil {
+		if value, err := value.ToInteger(); err == nil {
+			if value == 1 {
+				jsFunctionReturn.Operation = Write
+			} else {
+				jsFunctionReturn.Operation = Read
+			}
+		} else {
+			return errorReturnFilter(error)
+		}
+	} else {
+		return errorReturnFilter(error)
+	}
+
+	return jsFunctionReturn
+}
+
+func errorReturnFilter(error error) JsFilterFunctionReturn {
+	return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro sandman acl : \"" + error.Error() + "}"}
+}
+
+func veryfyPolicyToJSContext(call otto.FunctionCall) otto.Value { //
+	method, error := call.Argument(0).ToString()
+	if error != nil {
+		fmt.Println("ERRO : parametro method : ", error)
+	}
+	url, error := call.Argument(1).ToString()
+	if error != nil {
+		fmt.Println("ERRO : parametro url : ", error)
+	}
+	allowed := security.VerifyPolicy(method, url)
+	result, error := otto.ToValue(allowed)
+	if error != nil {
+		fmt.Println("ERRO : returno da função javascript  : ", error)
+	}
+	return result
 }
 
 func init() {
 	readFromFile()
 	parseFilterObject()
-	fmt.Println(FilterMoldels)
 }
 
 func readFromFile() {
@@ -79,8 +201,6 @@ func readFromFile() {
 		jsFilterFunctions = append(jsFilterFunctions, string(content))
 	}
 
-	fmt.Println(jsFilterFunctions)
-
 }
 
 func parseFilterObject() {
@@ -88,46 +208,82 @@ func parseFilterObject() {
 	for _, jsFunc := range jsFilterFunctions {
 		js := otto.New()
 
-		// funcRet, error := js.Call("JSON.parse", nil, "{\"teste\": 123}")
-		// if error != nil {
-		// 	fmt.Println("ERRO AO RODAR O JSON>PARSE ::::: ", error)
-		// }
-		// val, _ := funcRet.Object().Get("teste")
-
-		// fmt.Println("JSON>PARSE>TESTE>VALUE>123 :: ", val.String())
-
-		filter, error := js.Object("(" + jsFunc + ")")
+		invokeObj, error := js.Object("({AFTER : 0, BEFORE : 1})")
 		if error != nil {
-			fmt.Println(error)
+			fmt.Println("ERRO AO CRIAR O JS OBJECT 'Invoke'.", error)
+		}
+		js.Set("invoke", invokeObj)
+
+		funcFilterDefinition, error := js.Call("(function(invoke){return"+jsFunc+"})", nil, invokeObj)
+		if error != nil {
+			fmt.Println("ERRO AO TENTAR PARSEAR A DEFINICAO DO FILTRO ::::: ", error, "\n", jsFunc)
 		}
 
+		filter := funcFilterDefinition.Object()
+
 		filterDefinition := JsFilterModel{}
+
+		if value, err := filter.Get("invoke"); err == nil {
+			if value, err := value.ToInteger(); err == nil {
+				if value == 1 {
+					filterDefinition.Invoke = Before
+				} else {
+					filterDefinition.Invoke = After
+				}
+			} else {
+				//(error)
+			}
+		} else {
+			//(error)
+		}
 
 		if value, err := filter.Get("name"); err == nil {
 			if value, err := value.ToString(); err == nil {
 				filterDefinition.Name = value
+			} else {
+				//(error)
 			}
+		} else {
+			//(error)
 		}
 
 		if value, err := filter.Get("order"); err == nil {
 			if value, err := value.ToInteger(); err == nil {
 				filterDefinition.Order = value
+			} else {
+				//(error)
 			}
+		} else {
+			//(error)
 		}
 
 		if value, err := filter.Get("pathPattern"); err == nil {
 			if value, err := value.ToString(); err == nil {
 				filterDefinition.PathPattern = value
+			} else {
+				//(error)
 			}
+		} else {
+			//(error)
 		}
 
 		if value, err := filter.Get("function"); err == nil {
 			if value, err := value.ToString(); err == nil {
 				filterDefinition.Function = value
+			} else {
+				//(error)
 			}
+		} else {
+			//(error)
 		}
 
 		FilterMoldels = append(FilterMoldels, filterDefinition)
+
+		if filterDefinition.Invoke == Before {
+			FiltersBefore = append(FiltersBefore, filterDefinition)
+		} else {
+			FiltersAfter = append(FiltersAfter, filterDefinition)
+		}
 
 	}
 

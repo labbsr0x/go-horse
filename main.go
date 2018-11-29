@@ -1,99 +1,39 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"os"
-	"strings"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/handlers"
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/matchers"
+	sockclient "gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/sockClient"
+	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/util"
 	"github.com/kataras/iris"
-	"github.com/ory/ladon"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters"
-
-	keto "github.com/ory/keto/sdk/go/keto/swagger"
 )
 
-var client = httpClient("unix:///var/run/docker.sock")
+var client *http.Client = sockclient.Get("unix:///var/run/docker.sock")
 
 func main() {
 	app := iris.Default()
 	// app.Use(before)
 	// app.Done(after)
+	// teste := filters.JsFilterModel{Operation: filters.Read}
+	// teste2 := filters.JsFilterModel{Operation: filters.Write}
+	// fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste.Operation == filters.Read)
+	// fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste2.Operation == filters.Read)
+	// fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste2.Operation == filters.Write)
 	app.Post("/login", handlers.Login)
 	app.Any("*", before, ProxyHandler, after)
 	app.Run(iris.Addr(config.Port)) //:8080
-
-}
-
-func httpClient(u string) *http.Client {
-	url, err := url.Parse(u)
-	if err != nil {
-		fmt.Println("failed parsing URL", u, " : ", err)
-		return nil
-	}
-	transport := &http.Transport{}
-	transport.DisableKeepAlives = true
-	path := url.Path
-	transport.Dial = func(proto, addr string) (net.Conn, error) {
-		return net.Dial("unix", path)
-	}
-	url.Scheme = "http"
-	url.Host = "unix-socket"
-	url.Path = ""
-	return &http.Client{Transport: transport}
-}
-
-func extractTokenFromURL(ctx iris.Context) (token, tokenlessURL string, err error) {
-	url := ctx.Request().URL.String()
-	fmt.Println("URL : ", url)
-	paths := strings.Split(url, "/")
-	if paths[1] != "token" || len(paths) < 4 {
-		err = errors.New("URL inválida : verifique a variável de ambiente 'DOCKER_HOST' deve conter o host e o token no seguinte formato 'http://[host]/token/[token]'")
-		return
-	}
-	token = paths[2]
-	tokenlessURL = "http://sandman/" + strings.Join(paths[3:], "/")
-	return
-}
-
-func validatePolicy(ctx iris.Context, tokenlessURL string) bool {
-	// fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$ tokenlessURL ::::::>>>>>>> ", tokenlessURL)
-	// ABILIO SAYS: extrair essa nojeira para um struct com paredes de chumbo para evitar vazamento e contaminação de todo o cluster com esse "shenanigan"
-	dockerPath := strings.Split(strings.Join(strings.Split(tokenlessURL, "/")[4:], "/"), "?")[:1][0]
-	if strings.Contains(tokenlessURL, "_ping") {
-		return true
-	}
-	// fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$ DOCKERPATH ::::::>>>>>>> ", dockerPath)
-	urlServer := "http://172.24.40.63:4466"
-	// fmt.Println("Testing API...")
-	client := keto.NewWardenApiWithBasePath(urlServer)
-	result, _, err := client.IsSubjectAuthorized(keto.WardenSubjectAuthorizationRequest{
-		Action:   strings.ToUpper(ctx.Request().Method),
-		Resource: "srn:campus:docker:region1:sandman:dockerapi/" + dockerPath,
-		Subject:  "docker",
-		Context:  ladon.Context{},
-	})
-	if err != nil {
-		fmt.Printf("%v", err)
-		os.Exit(1)
-	}
-	// fmt.Printf("Allowed: %t\n", result.Allowed)
-	return result.Allowed
 }
 
 // ProxyHandler lero-lero
 func ProxyHandler(ctx iris.Context) {
 
-	// SAAPORRA
+	// SAAPORRA QJ;QL;
 
 	// log.Printf("Creating JS interpreter")
 	// js := otto.New()
@@ -126,7 +66,8 @@ func ProxyHandler(ctx iris.Context) {
 
 	// println("Inside mainHandler")
 	// info := ctx.Values().GetString("info")
-	token, tokenlessURL, err := extractTokenFromURL(ctx)
+
+	token, tokenlessURL, err := util.ExtractTokenFromURL(ctx)
 	fmt.Println("TOKEN :> ", token)
 	// fmt.Println("URL SEM TOKEN :> ", tokenlessURL)
 	// fmt.Println("ERR :> ", err)
@@ -139,8 +80,8 @@ func ProxyHandler(ctx iris.Context) {
 		return
 	}
 	fmt.Println("ctx.Request().URL.RawQuery : ", ctx.Request().URL.String())
-	out, _ := httputil.DumpRequest(ctx.Request(), true)
-	fmt.Println("$$$$$$$$$$$$$$$ >>>>>>>>>>>>>>>>>>> REQUEST : \n", string(out))
+	// out, _ := httputil.DumpRequest(ctx.Request(), true)
+	// fmt.Println("$$$$$$$$$$$$$$$ >>>>>>>>>>>>>>>>>>> REQUEST : \n", string(out))
 
 	isAllowed := true //validatePolicy(ctx, tokenlessURL)
 
@@ -178,7 +119,9 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Header(key, value[0])
 	}
 
-	fmt.Println("$$$$$$$$$$$$$$$ >>>>>>>>>>>>>>>>>>> RESPONSE : \n", string(responseBody))
+	// fmt.Println("$$$$$$$$$$$$$$$ >>>>>>>>>>>>>>>>>>> RESPONSE : \n", string(responseBody))
+
+	ctx.Values().Set("responseBody", string(responseBody))
 
 	// if strings.HasSuffix(ctx.Request().URL.String(), "/services/create") {
 	// 	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
@@ -192,13 +135,15 @@ func ProxyHandler(ctx iris.Context) {
 
 	// fmt.Println("response :: >> ", string(responseBody), error)
 
-	jsonMatcher := matchers.JSONMatcher{Query: "Config.Labels", ExpectedValue: "2"}
+	// jsonMatcher := matchers.JSONMatcher{Query: "Config.Labels", ExpectedValue: "2"}
 
-	fmt.Println("################### jsonMatcher.Match()", jsonMatcher.Match(responseBody))
+	// fmt.Println("################### jsonMatcher.Match()", jsonMatcher.Match(responseBody))
 
-	for _, filter := range filters.FilterMoldels {
-		fmt.Println(filter.Exec(ctx, string(responseBody)))
-	}
+	// for _, filter := range filters.FilterMoldels {
+	// 	result := filter.Exec(ctx, string(responseBody))
+	// 	fmt.Printf("%+v\n", result)
+	// 	fmt.Println("OPERATION :> ", result.Operation)
+	// }
 
 	// ctx.Header("Api-Version", apiVersion)
 	ctx.ContentType("application/json")
@@ -208,14 +153,43 @@ func ProxyHandler(ctx iris.Context) {
 }
 
 func before(ctx iris.Context) {
-	shareInformation := "this is a sharable information between handlers"
 	requestPath := ctx.Path()
-	println("Before the mainHandler: " + requestPath)
-	ctx.Values().Set("info", shareInformation)
+	println("BEFORE the mainHandler: " + requestPath)
+
+	requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
+	if erro != nil {
+		fmt.Println("ERRO AO PARSEAR O BODY DO REQUEST PARA A REQUISICAO :: ", ctx.String())
+	}
+	ctx.Values().Set("requestBody", string(requestBody))
+
+	for _, filter := range filters.FiltersBefore {
+		if filter.MatchURL(ctx) {
+			result := filter.Exec(ctx, string(requestBody))
+			fmt.Printf("%+v\n", result)
+			fmt.Println("OPERATION :> ", result.Operation)
+		}
+	}
+
 	ctx.Next()
 }
 
 func after(ctx iris.Context) {
-	println("After the mainHandler")
+	requestPath := ctx.Path()
+	println("AFTER the mainHandler: " + requestPath)
 
+	var responseBody string
+
+	if strBody, ok := ctx.Values().Get("responseBody").(string); ok {
+		responseBody = strBody
+	} else {
+		fmt.Println("ERRO AO PARSEAR O BODY DO REQUEST PARA A REQUISICAO :: ", strBody, ok)
+	}
+
+	for _, filter := range filters.FiltersAfter {
+		if filter.MatchURL(ctx) {
+			result := filter.Exec(ctx, responseBody)
+			fmt.Printf("%+v\n", result)
+			fmt.Println("OPERATION :> ", result.Operation)
+		}
+	}
 }

@@ -1,8 +1,6 @@
 package matchers
 
 import (
-	"fmt"
-
 	"github.com/tidwall/gjson"
 )
 
@@ -44,8 +42,6 @@ type JSONMatcher struct {
 
 // Match lero lero
 func (matcher JSONMatcher) Match(body []byte) (matches bool) {
-	fmt.Println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> " + string(body))
 	match := gjson.Get(string(body), matcher.Query)
-	fmt.Printf("------- BODY : %s\n", match.Raw)
-	return true
+	return match.Bool()
 }
