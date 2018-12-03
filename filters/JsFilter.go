@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"sort"
+	"strings"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/security"
 
@@ -60,6 +62,7 @@ type JsFilterModel struct {
 type JsFilterFunctionReturn struct {
 	Next      bool
 	Body      string
+	Status    int
 	Operation BodyOperation
 }
 
@@ -106,7 +109,7 @@ func (model JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionR
 	}
 	js.Set("operation", operation)
 	js.Set("verifyPolicy", veryfyPolicyToJSContext)
-	js.Set("method", "GET")
+	js.Set("method", strings.ToUpper(ctx.Method()))
 
 	returnValue, error := js.Run("(" + model.Function + ")(url, body, operation, method, verifyPolicy)")
 
@@ -150,6 +153,16 @@ func (model JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionR
 			} else {
 				jsFunctionReturn.Operation = Read
 			}
+		} else {
+			return errorReturnFilter(error)
+		}
+	} else {
+		return errorReturnFilter(error)
+	}
+
+	if value, err := result.Get("status"); err == nil {
+		if value, err := value.ToInteger(); err == nil {
+			jsFunctionReturn.Status = int(value)
 		} else {
 			return errorReturnFilter(error)
 		}
@@ -201,6 +214,27 @@ func readFromFile() {
 		jsFilterFunctions = append(jsFilterFunctions, string(content))
 	}
 
+}
+
+func orderFilterModels(models ...[]JsFilterModel) {
+	for _, filters := range models {
+		sort.SliceStable(filters[:], func(i, j int) bool {
+			return filters[i].Order < filters[j].Order
+		})
+	}
+}
+
+func validateFilterOrder(models []JsFilterModel) {
+	var last int64 = -1
+	for _, filter := range models {
+		fmt.Println("order : ", filter.Order)
+		fmt.Println("last : ", last)
+		if filter.Order == last {
+			panic(fmt.Sprintf("Erro na definição dos filtros : colisão da propriedade ordem : existem 2 filtros com a ordem nro -> %d", last))
+		}
+		last = filter.Order
+
+	}
 }
 
 func parseFilterObject() {
@@ -284,6 +318,9 @@ func parseFilterObject() {
 		} else {
 			FiltersAfter = append(FiltersAfter, filterDefinition)
 		}
+
+		orderFilterModels(FilterMoldels, FiltersBefore, FiltersAfter)
+		validateFilterOrder(FilterMoldels)
 
 	}
 

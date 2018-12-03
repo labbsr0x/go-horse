@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/handlers"
 	sockclient "gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/sockClient"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/util"
 	"github.com/kataras/iris"
+	"github.com/kataras/iris/middleware/recover"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters"
 )
@@ -17,7 +21,8 @@ import (
 var client *http.Client = sockclient.Get("unix:///var/run/docker.sock")
 
 func main() {
-	app := iris.Default()
+	app := iris.New()
+	app.Use(recover.New())
 	// app.Use(before)
 	// app.Done(after)
 	// teste := filters.JsFilterModel{Operation: filters.Read}
@@ -26,8 +31,13 @@ func main() {
 	// fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste2.Operation == filters.Read)
 	// fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste2.Operation == filters.Write)
 	app.Post("/login", handlers.Login)
-	app.Any("*", before, ProxyHandler, after)
+	app.Any("*", ProxyHandler)
+	log.Warn().Msg("Inicializando o sandman-acl-proxy ... ")
 	app.Run(iris.Addr(config.Port)) //:8080
+}
+
+func init() {
+	zerolog.TimeFieldFormat = ""
 }
 
 // ProxyHandler lero-lero
@@ -68,7 +78,7 @@ func ProxyHandler(ctx iris.Context) {
 	// info := ctx.Values().GetString("info")
 
 	token, tokenlessURL, err := util.ExtractTokenFromURL(ctx)
-	fmt.Println("TOKEN :> ", token)
+	log.Info().Msg("TOKEN :> " + token)
 	// fmt.Println("URL SEM TOKEN :> ", tokenlessURL)
 	// fmt.Println("ERR :> ", err)
 	if err != nil {
@@ -94,7 +104,17 @@ func ProxyHandler(ctx iris.Context) {
 		return
 	}
 
-	request, newRequestError := http.NewRequest(ctx.Request().Method, tokenlessURL, ctx.Request().Body)
+	if ctx.Values().Get("requestBody") == nil {
+		requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
+		if erro != nil {
+			fmt.Println("ERRO AO PARSEAR O BODY DO REQUEST PARA A REQUISICAO :: ", ctx.String())
+		}
+		ctx.Values().Set("requestBody", string(requestBody))
+	}
+
+	before(ctx)
+
+	request, newRequestError := http.NewRequest(ctx.Request().Method, tokenlessURL, strings.NewReader(ctx.Values().GetString("requestBody")))
 
 	for key, value := range ctx.Request().Header {
 		request.Header[key] = value
@@ -146,50 +166,46 @@ func ProxyHandler(ctx iris.Context) {
 	// }
 
 	// ctx.Header("Api-Version", apiVersion)
+
+	after(ctx)
+
 	ctx.ContentType("application/json")
 	ctx.StatusCode(response.StatusCode)
-	ctx.Write(responseBody)
-	ctx.Next()
+	ctx.WriteString(ctx.Values().GetString("responseBody"))
 }
 
 func before(ctx iris.Context) {
 	requestPath := ctx.Path()
-	println("BEFORE the mainHandler: " + requestPath)
-
-	requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
-	if erro != nil {
-		fmt.Println("ERRO AO PARSEAR O BODY DO REQUEST PARA A REQUISICAO :: ", ctx.String())
+	log.Info().Msg("BEFORE the mainHandler: " + requestPath)
+	var requestBody []byte
+	if ctx.Values().Get("requestBody") == nil {
+		requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
+		if erro != nil {
+			fmt.Println("ERRO AO PARSEAR O BODY DO REQUEST PARA A REQUISICAO :: ", ctx.String())
+		}
+		ctx.Values().Set("requestBody", string(requestBody))
 	}
-	ctx.Values().Set("requestBody", string(requestBody))
 
 	for _, filter := range filters.FiltersBefore {
 		if filter.MatchURL(ctx) {
 			result := filter.Exec(ctx, string(requestBody))
-			fmt.Printf("%+v\n", result)
-			fmt.Println("OPERATION :> ", result.Operation)
+			if result.Operation == filters.Write {
+				ctx.Values().Set("requestBody", result.Body)
+			}
 		}
 	}
-
-	ctx.Next()
 }
 
 func after(ctx iris.Context) {
 	requestPath := ctx.Path()
 	println("AFTER the mainHandler: " + requestPath)
 
-	var responseBody string
-
-	if strBody, ok := ctx.Values().Get("responseBody").(string); ok {
-		responseBody = strBody
-	} else {
-		fmt.Println("ERRO AO PARSEAR O BODY DO REQUEST PARA A REQUISICAO :: ", strBody, ok)
-	}
-
 	for _, filter := range filters.FiltersAfter {
 		if filter.MatchURL(ctx) {
-			result := filter.Exec(ctx, responseBody)
-			fmt.Printf("%+v\n", result)
-			fmt.Println("OPERATION :> ", result.Operation)
+			result := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
+			if result.Operation == filters.Write {
+				ctx.Values().Set("responseBody", result.Body)
+			}
 		}
 	}
 }
