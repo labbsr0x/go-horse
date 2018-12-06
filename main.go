@@ -27,7 +27,7 @@ func main() {
 	// app.Done(after)
 	// teste := filters.JsFilterModel{Operation: filters.Read}
 	// teste2 := filters.JsFilterModel{Operation: filters.Write}
-	// fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste.Operation == filters.Read)
+	// fmt.Println("@@@@@@@@@@@@@@@ @@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste.Operation == filters.Read)
 	// fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste2.Operation == filters.Read)
 	// fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ >>>>>>>>>>>>>>>>>>>>>>>> ", teste2.Operation == filters.Write)
 	app.Post("/login", handlers.Login)
@@ -186,11 +186,14 @@ func before(ctx iris.Context) {
 		ctx.Values().Set("requestBody", string(requestBody))
 	}
 
-	for _, filter := range filters.FiltersBefore {
+	for _, filter := range filters.BeforeFilters() {
 		if filter.MatchURL(ctx) {
 			result := filter.Exec(ctx, string(requestBody))
 			if result.Operation == filters.Write {
 				ctx.Values().Set("requestBody", result.Body)
+			}
+			if !result.Next {
+				break
 			}
 		}
 	}
@@ -200,11 +203,14 @@ func after(ctx iris.Context) {
 	requestPath := ctx.Path()
 	println("AFTER the mainHandler: " + requestPath)
 
-	for _, filter := range filters.FiltersAfter {
+	for _, filter := range filters.AfterFilters() {
 		if filter.MatchURL(ctx) {
 			result := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
 			if result.Operation == filters.Write {
 				ctx.Values().Set("responseBody", result.Body)
+			}
+			if !result.Next {
+				break
 			}
 		}
 	}
