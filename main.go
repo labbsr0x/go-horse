@@ -123,7 +123,6 @@ func before(ctx iris.Context) {
 	if ctx.Values().Get("requestBody") == nil {
 		requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
 		if erro != nil {
-			fmt.Println("ERRO AO PARSEAR O BODY DO REQUEST PARA A REQUISICAO :: ", ctx.String())
 			log.Error().Str("Error parsing request body : ", ctx.String()).Err(erro)
 		}
 		ctx.Values().Set("requestBody", string(requestBody))

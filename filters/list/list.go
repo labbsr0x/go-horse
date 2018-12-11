@@ -99,8 +99,6 @@ func orderFilterModels(models ...[]model.Filter) {
 func validateFilterOrder(models []model.Filter) {
 	last := -1
 	for _, filter := range models {
-		fmt.Println("order : ", filter.Config().Order)
-		fmt.Println("last : ", last)
 		if filter.Config().Order == last {
 			log.Fatal().Msg(fmt.Sprintf("Error on filters definitions : property configuration mismatch ORDER : theres 2 filters or more with the same order value -> %d", last))
 			panic("Correct the filters configurations, including the plugins")
@@ -116,7 +114,7 @@ func dirWatcher() {
 		for {
 			select {
 			case event := <-dirWatcher.Event:
-				fmt.Println(event) // Print the event's info.
+				log.Warn().Msg(fmt.Sprintf("Filters definition updated : %#v", event))
 				updateFilters()
 			case err := <-dirWatcher.Error:
 				log.Error().Err(err).Msg("DirWatcher error")
