@@ -1,16 +1,14 @@
 package plugins
 
 import (
-	"fmt"
 	"io/ioutil"
-	"log"
-	"os"
 	"plugin"
 
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
+	"github.com/rs/zerolog/log"
 )
 
 // FilterPluginList lero-lero
@@ -43,41 +41,36 @@ func Load() []Filter {
 
 	files, err := ioutil.ReadDir(config.GoPluginsPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Error().Err(err).Str("dir", config.GoPluginsPath).Msg("Could not load plugins from directory")
 	}
 
 	for _, file := range files {
 
-		fmt.Println(">>>>>> PLUGIN : ", file)
+		log.Debug().Str("file", file.Name()).Msg("Loading plugin")
 
-		// load module
-		// 1. open the so file to load the symbols
 		plug, err := plugin.Open(config.GoPluginsPath + "/" + file.Name())
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			log.Error().Err(err).Str("plugin_path", config.GoPluginsPath+"/"+file.Name()).Msg("Could not open plugin")
 		}
 
-		// 2. look up a symbol (an exported function or variable)
-		// in this case, variable Plugin
 		symPlugin, err := plug.Lookup("Plugin")
 		if err != nil {
-			fmt.Println("erro ao carregar o plugin : ", err)
-			os.Exit(1)
+			log.Error().Err(err).Str("plugin_path", config.GoPluginsPath+"/"+file.Name()).Msg("Could not load plugin")
 		}
 
-		// 3. Assert that loaded symbol is of a desired type
-		// in this case interface type Greeter (defined above)
 		var filter Filter
 		filter, ok := symPlugin.(Filter)
 		if ok {
 			FilterPluginList = append(FilterPluginList, filter)
+			name, _, _, _ := filter.Config()
+			log.Debug().Str("plugin_name", name).Str("type", "filter").Msg("Plugin loaded")
 		}
 
 		var js JSContextInjection
 		js, ok = symPlugin.(JSContextInjection)
 		if ok {
 			JSPluginList = append(JSPluginList, js)
+			log.Debug().Str("plugin_name", js.Name()).Str("type", "js").Msg("Plugin loaded")
 		}
 
 	}

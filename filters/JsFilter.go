@@ -3,7 +3,6 @@ package filters
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/security"
 
 	"github.com/kataras/iris"
+	"github.com/rs/zerolog/log"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
 	"github.com/robertkrimen/otto"
@@ -64,7 +64,7 @@ func (jsFilter JsFilterModel) MatchURL(ctx iris.Context) bool {
 	if jsFilter.regex == nil {
 		regex, error := regexp.Compile(jsFilter.PathPattern)
 		if error != nil {
-			fmt.Printf("ERRO AO CRIAR REGEX PARA DAR MATCH NA URL DO FILTRO : %s; PATTERN : %s\n", jsFilter.Name, jsFilter.PathPattern)
+			log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error compiling the filter url matcher regex")
 		} else {
 			jsFilter.regex = regex
 		}
@@ -76,7 +76,7 @@ func (jsFilter JsFilterModel) MatchURL(ctx iris.Context) bool {
 func (jsFilter JsFilterModel) ExecResponse(ctx iris.Context, response *http.Response) JsFilterFunctionReturn {
 	body, erro := ioutil.ReadAll(response.Body)
 	if erro != nil {
-		fmt.Println("Erro parsear body para execução da função javascript ::>>" + erro.Error())
+		log.Error().Str("plugin_name", jsFilter.Name).Err(erro).Msg("Error parsing body")
 	}
 	return jsFilter.Exec(ctx, string(body))
 }
@@ -89,7 +89,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 
 	funcRet, error := js.Call("JSON.parse", nil, body)
 	if error != nil {
-		fmt.Println("ERRO AO RODAR O JSON>PARSE ::::: ", error)
+		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing body string to JS object - js filter exec")
 		emptyBody, _ := js.Object("({})")
 		funcRet, _ = otto.ToValue(emptyBody)
 	}
@@ -98,7 +98,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 
 	operation, error := js.Object("({READ : 0, WRITE : 1})")
 	if error != nil {
-		fmt.Println("ERRO AO CRIAR O JS OBJECT 'Operation'.", error)
+		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error creating operation object - js filter exec")
 	}
 	js.Set("operation", operation)
 	js.Set("verifyPolicy", veryfyPolicyToJSContext)
@@ -114,7 +114,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 	for _, jsPlugin := range plugins.JSPluginList {
 		error := pluginsJsObj.Set(jsPlugin.Name(), func(call otto.FunctionCall) otto.Value { return jsPlugin.Set(ctx, call) })
 		if error != nil {
-			fmt.Println("ERRO AO INJETAR O PLUGIN : ", error)
+			log.Error().Str("plugin_name", jsPlugin.Name()).Err(error).Msg("Error on applying GO->JS plugin - js filter exec")
 		}
 	}
 
@@ -123,13 +123,13 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 	returnValue, error := js.Run("(" + jsFilter.Function + ")(url, body, operation, method, verifyPolicy, getVar, setVar, listVar, headers, request, plugins)")
 
 	if error != nil {
-		fmt.Println("Erro executar fn js ::>> ", error)
+		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error executing filter - js filter exec")
 	}
 
 	result := returnValue.Object()
 
 	if error != nil {
-		fmt.Println("Erro executar ao tentar obter o valor de retorno da função js ::>> ", error)
+		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing return value from filter - js filter exec")
 		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro sandman acl : \"" + error.Error() + "}"}
 	}
 
@@ -183,22 +183,23 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 }
 
 func errorReturnFilter(error error) JsFilterFunctionReturn {
-	return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro sandman acl : \"" + error.Error() + "}"}
+	log.Error().Err(error).Msg("Error parsing filter return value - js filter exec")
+	return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Proxy error : \"" + error.Error() + "}"}
 }
 
 func veryfyPolicyToJSContext(call otto.FunctionCall) otto.Value { //
 	method, error := call.Argument(0).ToString()
 	if error != nil {
-		fmt.Println("ERRO : parametro method : ", error)
+		log.Error().Err(error).Msg("Error parsing veryfyPolicyToJSContext method field - js filter exec")
 	}
 	url, error := call.Argument(1).ToString()
 	if error != nil {
-		fmt.Println("ERRO : parametro url : ", error)
+		log.Error().Err(error).Msg("Error parsing veryfyPolicyToJSContext url field - js filter exec")
 	}
 	allowed := security.VerifyPolicy(method, url)
 	result, error := otto.ToValue(allowed)
 	if error != nil {
-		fmt.Println("ERRO : returno da função javascript  : ", error)
+		log.Error().Err(error).Msg("Error parsing veryfyPolicyToJSContext function field - js filter exec")
 	}
 	return result
 }
@@ -206,12 +207,12 @@ func veryfyPolicyToJSContext(call otto.FunctionCall) otto.Value { //
 func requestScopeGetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value { //
 	key, error := call.Argument(0).ToString()
 	if error != nil {
-		fmt.Println("ERRO : parametro key : ", error)
+		log.Error().Err(error).Msg("Error parsing requestScopeGetToJSContext key field - js filter exec")
 	}
 	value := util.RequestScopeGet(ctx, key)
 	result, error := otto.ToValue(value)
 	if error != nil {
-		fmt.Println("ERRO : returno da função javascript  : ", error)
+		log.Error().Err(error).Msg("Error parsing requestScopeGetToJSContext function return - js filter exec")
 	}
 	return result
 }
@@ -219,11 +220,11 @@ func requestScopeGetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.V
 func requestScopeSetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value { //
 	key, error := call.Argument(0).ToString()
 	if error != nil {
-		fmt.Println("ERRO : parametro key : ", error)
+		log.Error().Err(error).Msg("Error parsing requestScopeSetToJSContext key field - js filter exec")
 	}
 	value, error := call.Argument(1).ToString()
 	if error != nil {
-		fmt.Println("ERRO : parametro value : ", error)
+		log.Error().Err(error).Msg("Error parsing requestScopeSetToJSContext function exec - js filter exec")
 	}
 	util.RequestScopeSet(ctx, key, value)
 	return otto.NullValue()
@@ -233,7 +234,7 @@ func requestScopeListToJSContext(ctx iris.Context, call otto.FunctionCall) otto.
 	mapa := util.RequestScopeList(ctx)
 	result, error := call.Otto.ToValue(mapa)
 	if error != nil {
-		fmt.Println("ERRO : tentando transformar o mapa do retorno da func RequestScopeList to JS value : ", error)
+		log.Error().Err(error).Msg("Error parsing requestScopeListToJSContext response map - js filter exec")
 	}
 	return result
 }
@@ -241,15 +242,15 @@ func requestScopeListToJSContext(ctx iris.Context, call otto.FunctionCall) otto.
 func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 	method, error := call.Argument(0).ToString()
 	if error != nil {
-		fmt.Println("Erro ao parsear o parametro method do request js->go : ", error)
+		log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext method - js filter exec")
 	}
 	url, error := call.Argument(1).ToString()
 	if error != nil {
-		fmt.Println("Erro ao parsear o parametro url do request js->go : ", error)
+		log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext url - js filter exec")
 	}
 	body, error := call.Argument(3).ToString()
 	if error != nil {
-		fmt.Println("Erro ao parsear o parametro body do request js->go : ", error)
+		log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext body - js filter exec")
 	}
 	var req *http.Request
 	var err interface{}
@@ -257,12 +258,12 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 	if method == "GET" {
 		req, err = http.NewRequest(method, url, nil)
 		if err != nil {
-			fmt.Println("Erro ao parsear o parametro header do request js->go : ", error)
+			log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext GET header - js filter exec")
 		}
 	} else {
 		req, err = http.NewRequest(method, url, strings.NewReader(body))
 		if err != nil {
-			fmt.Println("Erro ao parsear o parametro header do request js->go : ", error)
+			log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext OTHER THAN GET header - js filter exec")
 		}
 	}
 
@@ -271,19 +272,19 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 		for _, key := range headers.Keys() {
 			header, error := headers.Get(key)
 			if error != nil {
-				fmt.Println("Erro ao parsear o parametro header do request js->go : ", error)
+				log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext GET header - js filter exec")
 			}
 			headerValue, error := header.ToString()
 			if error != nil {
-				fmt.Println("Erro ao parsear o parametro header do request js->go : ", error)
+				log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext GET header - js filter exec")
 			}
 			req.Header.Add(key, headerValue)
 		}
 	}
-	fmt.Println("************************** PARAMETROS REQUEST : ", method, url, body, headers)
+	log.Debug().Str("method", method).Str("url", url).Str("body", body).Str("headers", fmt.Sprintf("%#v", headers)).Msg("Request parameters")
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Erro ao executar o request : ", err)
+		log.Error().Msg("Error executing the request - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
 	}
 	defer resp.Body.Close()
 	if req.Body != nil {
@@ -292,12 +293,12 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Erro ao parsear resposta do request request : ", err)
+		log.Error().Msg("Error parsing request body - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
 	}
 
 	result, error := call.Otto.ToValue(string(bodyBytes))
 	if error != nil {
-		fmt.Println("Erro ao transformar o retorno do request js->go : ", error)
+		log.Error().Err(error).Msg("Error parsing request body to JS object - httpRequestTOJSContext")
 	}
 
 	return result
@@ -314,16 +315,17 @@ func readFromFile() map[string]string {
 
 	files, err := ioutil.ReadDir(config.JsFiltersPath)
 	if err != nil {
-		log.Fatal(err)
+		log.Error().Err(err).Msg("Error reading filters dir - readFromFile")
 	}
 
 	for _, file := range files {
 		content, error := ioutil.ReadFile(config.JsFiltersPath + "/" + file.Name())
 		if error != nil {
+			log.Error().Err(err).Str("file", file.Name()).Msg("Error reading filter filter - readFromFile")
 			continue
 		}
 		jsFilterFunctions[file.Name()] = string(content)
-		fmt.Println(file.Name(), " >> ", string(content))
+		log.Debug().Str("file", file.Name()).Str("filter_content", string(content)).Msg("js filter - readFromFile")
 	}
 
 	return jsFilterFunctions
@@ -338,14 +340,13 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 
 		invokeObj, error := js.Object("({AFTER : 0, BEFORE : 1})")
 		if error != nil {
-			fmt.Println("ERRO AO CRIAR O JS OBJECT 'Invoke'.", error)
+			log.Error().Err(error).Str("file", fileName).Msg("Error creating invoke object - parseFilterObject")
 		}
 		js.Set("invoke", invokeObj)
 
 		funcFilterDefinition, error := js.Call("(function(invoke){return"+jsFunc+"})", nil, invokeObj)
 		if error != nil {
-			fmt.Println("ERRO AO TENTAR PARSEAR A DEFINICAO DO FILTRO ::::: ", error, "\n", jsFunc)
-			fmt.Println(">>>>>>>>>>>>>>> IGNORANDO O ARQUIVO ", fileName)
+			log.Error().Err(error).Str("file", fileName).Msg("Error on JS object definition - parseFilterObject")
 			continue
 		}
 
@@ -361,50 +362,50 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 					filterDefinition.Invoke = After
 				}
 			} else {
-				//(error)
+				log.Error().Err(err).Str("file", fileName).Str("field", "invoke").Msg("Error on JS filter definition - parseFilterObject")
 			}
 		} else {
-			//(error)
+			log.Error().Err(err).Str("file", fileName).Str("field", "invoke").Msg("Error on JS filter definition - parseFilterObject")
 		}
 
 		if value, err := filter.Get("name"); err == nil {
 			if value, err := value.ToString(); err == nil {
 				filterDefinition.Name = value
 			} else {
-				//(error)
+				log.Error().Err(err).Str("file", fileName).Str("field", "name").Msg("Error on JS filter definition - parseFilterObject")
 			}
 		} else {
-			//(error)
+			log.Error().Err(err).Str("file", fileName).Str("field", "name").Msg("Error on JS filter definition - parseFilterObject")
 		}
 
 		if value, err := filter.Get("order"); err == nil {
 			if value, err := value.ToInteger(); err == nil {
 				filterDefinition.Order = int(value)
 			} else {
-				//(error)
+				log.Error().Err(err).Str("file", fileName).Str("field", "order").Msg("Error on JS filter definition - parseFilterObject")
 			}
 		} else {
-			//(error)
+			log.Error().Err(err).Str("file", fileName).Str("field", "order").Msg("Error on JS filter definition - parseFilterObject")
 		}
 
 		if value, err := filter.Get("pathPattern"); err == nil {
 			if value, err := value.ToString(); err == nil {
 				filterDefinition.PathPattern = value
 			} else {
-				//(error)
+				log.Error().Err(err).Str("file", fileName).Str("field", "pathPattern").Msg("Error on JS filter definition - parseFilterObject")
 			}
 		} else {
-			//(error)
+			log.Error().Err(err).Str("file", fileName).Str("field", "pathPattern").Msg("Error on JS filter definition - parseFilterObject")
 		}
 
 		if value, err := filter.Get("function"); err == nil {
 			if value, err := value.ToString(); err == nil {
 				filterDefinition.Function = value
 			} else {
-				//(error)
+				log.Error().Err(err).Str("file", fileName).Str("field", "function").Msg("Error on JS filter definition - parseFilterObject")
 			}
 		} else {
-			//(error)
+			log.Error().Err(err).Str("file", fileName).Str("field", "function").Msg("Error on JS filter definition - parseFilterObject")
 		}
 
 		filterMoldels = append(filterMoldels, filterDefinition)

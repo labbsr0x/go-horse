@@ -1,17 +1,18 @@
 package sockclient
 
 import (
-	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+
+	"github.com/rs/zerolog/log"
 )
 
 // Get lero lero
 func Get(u string) *http.Client {
 	url, err := url.Parse(u)
 	if err != nil {
-		fmt.Println("failed parsing URL", u, " : ", err)
+		log.Debug().Str("URL", url.RequestURI()).Err(err)
 		return nil
 	}
 	transport := &http.Transport{}

@@ -1,14 +1,13 @@
 package model
 
 import (
-	"fmt"
-	"reflect"
 	"regexp"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/plugins"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters"
 	"github.com/kataras/iris"
+	"github.com/rs/zerolog/log"
 )
 
 // BodyOperation json body operation type
@@ -62,7 +61,6 @@ type baseFilter struct {
 }
 
 func parseOperation(operation interface{}) BodyOperation {
-	fmt.Println(">>>>>>>>>>>>>> OPERATION > ", reflect.TypeOf(operation))
 	intOperation, ok := operation.(int)
 	if ok {
 		if intOperation == 1 {
@@ -77,7 +75,6 @@ func parseOperation(operation interface{}) BodyOperation {
 }
 
 func parseInvoke(invoke interface{}) Invoke {
-	fmt.Println(">>>>>>>>>>>>>> INVOKE > ", reflect.TypeOf(invoke))
 	intInvoke, ok := invoke.(int)
 	if ok {
 		if intInvoke == 1 {
@@ -157,7 +154,7 @@ func MatchURL(ctx iris.Context, base baseFilter) bool {
 	if base.regex == nil {
 		regex, error := regexp.Compile(base.PathPattern)
 		if error != nil {
-			fmt.Printf("ERRO AO CRIAR REGEX PARA DAR MATCH NA URL DO FILTRO : %s; PATTERN : %s\n", base.Name, base.PathPattern)
+			log.Error().Str("plugin_name", base.Config().Name).Err(error).Msg("Error compiling the filter url matcher regex")
 		} else {
 			base.regex = regex
 		}

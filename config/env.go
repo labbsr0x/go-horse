@@ -3,7 +3,15 @@ package config
 import (
 	"os"
 	"strings"
+
+	"github.com/rs/zerolog"
 )
+
+// LogLevel lero lero
+var LogLevel = fixLogLevel(defaultValue("LOG_LEVEL", "debug"))
+
+// PrettyLog ler-lero
+var PrettyLog = defaultValueBol("PRETTY_LOG", true)
 
 // Port lero lero
 var Port = fixPortValue(defaultValue("PORT", ":8080"))
@@ -13,6 +21,14 @@ var JsFiltersPath = defaultValue("JS_FILTERS_PATH", os.Getenv("HOME")+"/sadman-a
 
 // GoPluginsPath lero-lero
 var GoPluginsPath = defaultValue("GO_PLUGINS_PATH", os.Getenv("HOME")+"/sadman-acl-proxy/plugins")
+
+func fixLogLevel(logLevel string) zerolog.Level {
+	level, error := zerolog.ParseLevel(logLevel)
+	if error != nil {
+		return zerolog.WarnLevel
+	}
+	return level
+}
 
 func fixPortValue(port string) string {
 	if strings.HasPrefix(port, ":") {
@@ -27,4 +43,12 @@ func defaultValue(envVar, value string) string {
 		return value
 	}
 	return env
+}
+
+func defaultValueBol(envVar string, value bool) bool {
+	env := os.Getenv(envVar)
+	if env == "" {
+		return value
+	}
+	return env == "true"
 }

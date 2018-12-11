@@ -2,7 +2,7 @@ package list
 
 import (
 	"fmt"
-	"log"
+
 	"sort"
 	"sync"
 	"time"
@@ -13,6 +13,7 @@ import (
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/model"
 	"github.com/radovskyb/watcher"
+	"github.com/rs/zerolog/log"
 )
 
 // All lero lero
@@ -76,9 +77,7 @@ func Load() {
 	}
 	for _, gofilter := range goFilters {
 		filter := model.NewFilterGO(gofilter)
-		fmt.Println("================================================>>>>>>>>>>>>>>>>>>>>>>>>>>> ", fmt.Sprintf("%#v", filter))
 		All = append(All, filter)
-		fmt.Println("================================================>>>>>>>>>>>>>>>>>>>>>>>>>>> ", fmt.Sprintf("%#v", filter.Config()))
 		if filter.Config().Invoke == model.Before {
 			Before = append(Before, filter)
 		} else {
@@ -103,7 +102,8 @@ func validateFilterOrder(models []model.Filter) {
 		fmt.Println("order : ", filter.Config().Order)
 		fmt.Println("last : ", last)
 		if filter.Config().Order == last {
-			panic(fmt.Sprintf("Erro na definição dos filtros : colisão da propriedade ordem : existem 2 filtros com a ordem nro -> %d", last))
+			log.Fatal().Msg(fmt.Sprintf("Error on filters definitions : property configuration mismatch ORDER : theres 2 filters or more with the same order value -> %d", last))
+			panic("Correct the filters configurations, including the plugins")
 		}
 		last = filter.Config().Order
 	}
@@ -119,7 +119,7 @@ func dirWatcher() {
 				fmt.Println(event) // Print the event's info.
 				updateFilters()
 			case err := <-dirWatcher.Error:
-				log.Fatalln("\n\n########### " + err.Error() + " ###########\n\n")
+				log.Error().Err(err).Msg("DirWatcher error")
 			case <-dirWatcher.Closed:
 				return
 			}
@@ -127,16 +127,12 @@ func dirWatcher() {
 	}()
 
 	if err := dirWatcher.AddRecursive(config.JsFiltersPath); err != nil {
-		log.Fatalln(err)
+		log.Error().Err(err).Msg("DirWatcher error")
 	}
-
-	// if err := dirWatcher.AddRecursive(config.GoPluginsPath); err != nil {
-	// 	log.Fatalln(err)
-	// }
 
 	go func() {
 		if err := dirWatcher.Start(time.Second); err != nil {
-			log.Fatalln(err)
+			log.Error().Err(err).Msg("DirWatcher error")
 		}
 	}()
 }
