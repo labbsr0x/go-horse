@@ -6,37 +6,20 @@ import (
 	"log"
 	"net/http"
 	"regexp"
-	"sort"
 	"strings"
-	"sync"
-	"time"
 
+	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/plugins"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/util"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/security"
 
 	"github.com/kataras/iris"
-	"github.com/radovskyb/watcher"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
 	"github.com/robertkrimen/otto"
 )
 
 var client = &http.Client{}
-
-var updateLock = sync.WaitGroup{}
-var isUpdating = false
-
-var jsFilterFunctions = make(map[string]string)
-
-// FilterMoldels lero lero
-var FilterMoldels []JsFilterModel
-
-// FiltersBefore lero lero
-var filtersBefore []JsFilterModel
-
-// FiltersAfter lero lero
-var filtersAfter []JsFilterModel
 
 // BodyOperation json body operation type
 type BodyOperation int
@@ -61,7 +44,7 @@ const (
 // JsFilterModel lero-lero
 type JsFilterModel struct {
 	Name        string
-	Order       int64
+	Order       int
 	PathPattern string
 	Invoke      Invoke
 	Function    string
@@ -76,46 +59,30 @@ type JsFilterFunctionReturn struct {
 	Operation BodyOperation
 }
 
-// BeforeFilters lero lero
-func BeforeFilters() []JsFilterModel {
-	if isUpdating {
-		updateLock.Wait()
-	}
-	return filtersBefore
-}
-
-// AfterFilters lero lero
-func AfterFilters() []JsFilterModel {
-	if isUpdating {
-		updateLock.Wait()
-	}
-	return filtersAfter
-}
-
 // MatchURL lero lero
-func (model JsFilterModel) MatchURL(ctx iris.Context) bool {
-	if model.regex == nil {
-		regex, error := regexp.Compile(model.PathPattern)
+func (jsFilter JsFilterModel) MatchURL(ctx iris.Context) bool {
+	if jsFilter.regex == nil {
+		regex, error := regexp.Compile(jsFilter.PathPattern)
 		if error != nil {
-			fmt.Printf("ERRO AO CRIAR REGEX PARA DAR MATCH NA URL DO FILTRO : %s; PATTERN : %s\n", model.Name, model.PathPattern)
+			fmt.Printf("ERRO AO CRIAR REGEX PARA DAR MATCH NA URL DO FILTRO : %s; PATTERN : %s\n", jsFilter.Name, jsFilter.PathPattern)
 		} else {
-			model.regex = regex
+			jsFilter.regex = regex
 		}
 	}
-	return model.regex.MatchString(ctx.RequestPath(false))
+	return jsFilter.regex.MatchString(ctx.RequestPath(false))
 }
 
 // ExecResponse lerol ero
-func (model JsFilterModel) ExecResponse(ctx iris.Context, response *http.Response) JsFilterFunctionReturn {
+func (jsFilter JsFilterModel) ExecResponse(ctx iris.Context, response *http.Response) JsFilterFunctionReturn {
 	body, erro := ioutil.ReadAll(response.Body)
 	if erro != nil {
 		fmt.Println("Erro parsear body para execução da função javascript ::>>" + erro.Error())
 	}
-	return model.Exec(ctx, string(body))
+	return jsFilter.Exec(ctx, string(body))
 }
 
 // Exec lero lero
-func (model JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionReturn {
+func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionReturn {
 
 	js := otto.New()
 	js.Set("url", ctx.Request().URL.Path)
@@ -142,7 +109,18 @@ func (model JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionR
 	js.Set("headers", ctx.Request().Header)
 	js.Set("request", httpRequestTOJSContext)
 
-	returnValue, error := js.Run("(" + model.Function + ")(url, body, operation, method, verifyPolicy, getVar, setVar, listVar, headers, request)")
+	pluginsJsObj, error := js.Object("({})")
+
+	for _, jsPlugin := range plugins.JSPluginList {
+		error := pluginsJsObj.Set(jsPlugin.Name(), func(call otto.FunctionCall) otto.Value { return jsPlugin.Set(ctx, call) })
+		if error != nil {
+			fmt.Println("ERRO AO INJETAR O PLUGIN : ", error)
+		}
+	}
+
+	js.Set("plugins", pluginsJsObj)
+
+	returnValue, error := js.Run("(" + jsFilter.Function + ")(url, body, operation, method, verifyPolicy, getVar, setVar, listVar, headers, request, plugins)")
 
 	if error != nil {
 		fmt.Println("Erro executar fn js ::>> ", error)
@@ -302,7 +280,7 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 			req.Header.Add(key, headerValue)
 		}
 	}
-	fmt.Println("************************** PARAMETROS REQUEST : %s, %s, %s, %+v", method, url, body, headers)
+	fmt.Println("************************** PARAMETROS REQUEST : ", method, url, body, headers)
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("Erro ao executar o request : ", err)
@@ -325,67 +303,14 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 	return result
 }
 
-func init() {
-	readFromFile()
-	parseFilterObject()
-	dirWatcher()
+// Load lero-lero
+func Load() []JsFilterModel {
+	return parseFilterObject(readFromFile())
 }
 
-func updateFilters() {
-	updateLock.Add(1)
+func readFromFile() map[string]string {
 
-	isUpdating = true
-
-	readFromFile()
-	parseFilterObject()
-	updateLock.Done()
-
-	isUpdating = false
-
-}
-
-func dirWatcher() {
-	dirWatcher := watcher.New()
-
-	go func() {
-		for {
-			select {
-			case event := <-dirWatcher.Event:
-				fmt.Println(event) // Print the event's info.
-				updateFilters()
-			case err := <-dirWatcher.Error:
-				log.Fatalln("\n\n########### " + err.Error() + " ###########\n\n")
-			case <-dirWatcher.Closed:
-				return
-			}
-		}
-	}()
-
-	// // Watch this folder for changes.
-	// if err := dirWatcher.AddRecursive("../"); err != nil {
-	// 	log.Fatalln(err)
-	// }
-
-	if err := dirWatcher.AddRecursive(config.JsFiltersPath); err != nil {
-		log.Fatalln(err)
-	}
-
-	// go func() {
-	// 	dirWatcher.Wait()
-	// 	dirWatcher.TriggerEvent(watcher.Create, nil)
-	// 	dirWatcher.TriggerEvent(watcher.Remove, nil)
-	// }()
-
-	go func() {
-		if err := dirWatcher.Start(time.Second); err != nil {
-			log.Fatalln(err)
-		}
-	}()
-}
-
-func readFromFile() {
-
-	jsFilterFunctions = make(map[string]string)
+	var jsFilterFunctions = make(map[string]string)
 
 	files, err := ioutil.ReadDir(config.JsFiltersPath)
 	if err != nil {
@@ -401,33 +326,12 @@ func readFromFile() {
 		fmt.Println(file.Name(), " >> ", string(content))
 	}
 
+	return jsFilterFunctions
 }
 
-func orderFilterModels(models ...[]JsFilterModel) {
-	for _, filters := range models {
-		sort.SliceStable(filters[:], func(i, j int) bool {
-			return filters[i].Order < filters[j].Order
-		})
-	}
-}
+func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 
-func validateFilterOrder(models []JsFilterModel) {
-	var last int64 = -1
-	for _, filter := range models {
-		fmt.Println("order : ", filter.Order)
-		fmt.Println("last : ", last)
-		if filter.Order == last {
-			panic(fmt.Sprintf("Erro na definição dos filtros : colisão da propriedade ordem : existem 2 filtros com a ordem nro -> %d", last))
-		}
-		last = filter.Order
-	}
-}
-
-func parseFilterObject() {
-
-	FilterMoldels = FilterMoldels[:0]
-	filtersBefore = filtersBefore[:0]
-	filtersAfter = filtersAfter[:0]
+	var filterMoldels []JsFilterModel
 
 	for fileName, jsFunc := range jsFilterFunctions {
 		js := otto.New()
@@ -475,7 +379,7 @@ func parseFilterObject() {
 
 		if value, err := filter.Get("order"); err == nil {
 			if value, err := value.ToInteger(); err == nil {
-				filterDefinition.Order = value
+				filterDefinition.Order = int(value)
 			} else {
 				//(error)
 			}
@@ -503,17 +407,7 @@ func parseFilterObject() {
 			//(error)
 		}
 
-		FilterMoldels = append(FilterMoldels, filterDefinition)
-
-		if filterDefinition.Invoke == Before {
-			filtersBefore = append(filtersBefore, filterDefinition)
-		} else {
-			filtersAfter = append(filtersAfter, filterDefinition)
-		}
-
-		orderFilterModels(FilterMoldels, filtersBefore, filtersAfter)
-		validateFilterOrder(FilterMoldels)
-
+		filterMoldels = append(filterMoldels, filterDefinition)
 	}
-
+	return filterMoldels
 }

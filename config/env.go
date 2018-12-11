@@ -9,7 +9,10 @@ import (
 var Port = fixPortValue(defaultValue("PORT", ":8080"))
 
 // JsFiltersPath lero lero
-var JsFiltersPath = defaultValue("JS_FILTERS_PATH", os.Getenv("HOME")+"/sadman-acl-proxy")
+var JsFiltersPath = defaultValue("JS_FILTERS_PATH", os.Getenv("HOME")+"/sadman-acl-proxy/filters")
+
+// GoPluginsPath lero-lero
+var GoPluginsPath = defaultValue("GO_PLUGINS_PATH", os.Getenv("HOME")+"/sadman-acl-proxy/plugins")
 
 func fixPortValue(port string) string {
 	if strings.HasPrefix(port, ":") {
