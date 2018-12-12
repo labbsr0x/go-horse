@@ -53,6 +53,7 @@ type FilterReturn struct {
 	Body      string
 	Status    int
 	Operation BodyOperation
+	Err       error
 }
 
 type baseFilter struct {
@@ -121,7 +122,7 @@ func (filterJs FilterJS) Config() FilterConfig {
 // Exec lero-lero
 func (filterJs FilterJS) Exec(ctx iris.Context, requestBody string) FilterReturn {
 	jsReturn := filterJs.innerType.Exec(ctx, requestBody)
-	return FilterReturn{jsReturn.Next, jsReturn.Body, jsReturn.Status, parseOperation(jsReturn.Operation)}
+	return FilterReturn{jsReturn.Next, jsReturn.Body, jsReturn.Status, parseOperation(jsReturn.Operation), jsReturn.Err}
 }
 
 // MatchURL lero-lero
@@ -136,8 +137,8 @@ func (filterGo FilterGO) Config() FilterConfig {
 
 // Exec lero-lero
 func (filterGo FilterGO) Exec(ctx iris.Context, requestBody string) FilterReturn {
-	Next, Body, Status, Operation := filterGo.innerType.Exec(ctx, requestBody)
-	return FilterReturn{Next, Body, Status, parseOperation(Operation)}
+	Next, Body, Status, Operation, Err := filterGo.innerType.Exec(ctx, requestBody)
+	return FilterReturn{Next, Body, Status, parseOperation(Operation), Err}
 }
 
 // NewFilterGO lero-lero

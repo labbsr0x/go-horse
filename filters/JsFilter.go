@@ -57,6 +57,7 @@ type JsFilterFunctionReturn struct {
 	Body      string
 	Status    int
 	Operation BodyOperation
+	Err       error
 }
 
 // MatchURL lero lero

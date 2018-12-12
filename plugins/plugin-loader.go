@@ -20,7 +20,7 @@ var JSPluginList []JSContextInjection
 // Filter ler-lero
 type Filter interface {
 	Config() (Name string, Order int, PathPattern string, Invoke int)
-	Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int)
+	Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error)
 }
 
 // JSContextInjection lero-lero
