@@ -2,8 +2,21 @@ version: '3.7'
 
 services:
   
-  teste:
-    image: hello-world
+  proxy:
+    build: .
+    image: sandman_proxy
     network_mode: bridge
-    labels:
-      br.com.sadman.namespace: "nome_do_grupo_do_individuo"    
+    ports: 
+      - 8080:8080
+    environment: 
+      - DOCKER_HOST=/var/run/docker.sock
+      - DOCKER_SOCK=unix:///var/run/docker.sock
+      - TARGET_HOSTNAME=http://localhost
+      - LOG_LEVEL=debug
+      - PRETTY_LOG=true
+      - PORT=:8080
+      - JS_FILTERS_PATH=/app/sadman-acl-proxy/filters
+      - GO_PLUGINS_PATH=/app/sadman-acl-proxy/plugins
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/bruno/sadman-acl-proxy:/app/sadman-acl-proxy
