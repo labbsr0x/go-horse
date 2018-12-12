@@ -154,7 +154,7 @@ func MatchURL(ctx iris.Context, base baseFilter) bool {
 	if base.regex == nil {
 		regex, error := regexp.Compile(base.PathPattern)
 		if error != nil {
-			log.Error().Str("plugin_name", base.Config().Name).Err(error).Msg("Error compiling the filter url matcher regex")
+			log.Error().Str("plugin_name", base.Name).Err(error).Msg("Error compiling the filter url matcher regex")
 		} else {
 			base.regex = regex
 		}

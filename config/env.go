@@ -7,6 +7,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// DockerSockURL lero-lero
+var DockerSockURL = defaultValue("DOCKER_SOCK", "unix:///var/run/docker.sock")
+
+// DockerSockURL lero-lero
+var TargetHostname = defaultValue("TARGET_HOSTNAME", "http://localhost")
+
 // LogLevel lero lero
 var LogLevel = fixLogLevel(defaultValue("LOG_LEVEL", "debug"))
 

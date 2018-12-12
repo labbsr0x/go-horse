@@ -248,7 +248,7 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 	if error != nil {
 		log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext url - js filter exec")
 	}
-	body, error := call.Argument(3).ToString()
+	body, error := call.Argument(2).ToString()
 	if error != nil {
 		log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext body - js filter exec")
 	}
@@ -267,7 +267,7 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 		}
 	}
 
-	headers := call.Argument(4).Object()
+	headers := call.Argument(3).Object()
 	if headers != nil {
 		for _, key := range headers.Keys() {
 			header, error := headers.Get(key)
@@ -296,12 +296,28 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 		log.Error().Msg("Error parsing request body - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
 	}
 
-	result, error := call.Otto.ToValue(string(bodyBytes))
+	response, error := call.Otto.Object("({})")
 	if error != nil {
-		log.Error().Err(error).Msg("Error parsing request body to JS object - httpRequestTOJSContext")
+		log.Error().Err(error).Msg("Error creating response js object - httpRequestTOJSContext")
 	}
 
-	return result
+	bodyObjectJs, error := call.Otto.ToValue(string(bodyBytes))
+	if error != nil {
+		log.Error().Err(error).Msg("Error parsing response body to JS object - httpRequestTOJSContext")
+	}
+
+	headersObjectJs, error := call.Otto.ToValue(resp.Header)
+	if error != nil {
+		log.Error().Err(error).Msg("Error parsing response headers to JS object - httpRequestTOJSContext")
+	}
+
+	response.Set("body", bodyObjectJs)
+	response.Set("status", resp.StatusCode)
+	response.Set("headers", headersObjectJs)
+
+	value, _ := otto.ToValue(response)
+
+	return value
 }
 
 // Load lero-lero

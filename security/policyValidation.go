@@ -12,13 +12,10 @@ import (
 
 // VerifyPolicy lero-lero
 func VerifyPolicy(method string, tokenlessURL string) bool {
-	fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$ tokenlessURL ::::::>>>>>>> ", tokenlessURL)
+
 	// ABILIO SAYS: extrair essa nojeira para um struct com paredes de chumbo para evitar vazamento e contaminação de todo o cluster com esse "shenanigan"
 	dockerPath := strings.Split(strings.Join(strings.Split(tokenlessURL, "/")[4:], "/"), "?")[:1][0]
-	// if strings.Contains(tokenlessURL, "_ping") {
-	// 	return true
-	// }
-	fmt.Println("$$$$$$$$$$$$$$$$$$$$$$$$ DOCKERPATH ::::::>>>>>>> ", dockerPath)
+
 	urlServer := "http://172.24.40.63:4466"
 	fmt.Println("Testing API...")
 	client := keto.NewWardenApiWithBasePath(urlServer)

@@ -12,21 +12,19 @@ import (
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/handlers"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/model"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/sockClient"
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/util"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/recover"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-var client = sockclient.Get("unix:///var/run/docker.sock")
+var client = sockclient.Get(config.DockerSockURL)
 
 func main() {
 	app := iris.New()
 	app.Use(recover.New())
 	app.Post("/login", handlers.Login)
 	app.Any("*", ProxyHandler)
-	log.Warn().Msg("Inicializando o sandman-acl-proxy ... ")
 	app.Run(iris.Addr(config.Port))
 }
 
@@ -49,18 +47,18 @@ func init() {
 // ProxyHandler lero-lero
 func ProxyHandler(ctx iris.Context) {
 
-	token, tokenlessURL, err := util.ExtractTokenFromURL(ctx)
-	log.Info().Str("request", tokenlessURL)
-	log.Debug().Str("token", token)
+	// token, tokenlessURL, err := util.ExtractTokenFromURL(ctx)
+	log.Debug().Str("request", ctx.String())
+	// log.Debug().Str("token", token)
 
-	if err != nil {
-		ctx.StatusCode(400)
-		ctx.JSON(iris.Map{"message": err.Error()})
-		ctx.Next()
-		return
-	}
+	// if err != nil {
+	// 	ctx.StatusCode(400)
+	// 	ctx.JSON(iris.Map{"message": err.Error()})
+	// 	ctx.Next()
+	// 	return
+	// }
 
-	// isAllowed := true //validatePolicy(ctx, tokenlessURL)
+	// isAllowed := security.VerifyPolicy(ctx.Request().Method, tokenlessURL)
 
 	// if !isAllowed {
 	// 	ctx.StatusCode(403)
@@ -81,15 +79,22 @@ func ProxyHandler(ctx iris.Context) {
 
 	before(ctx)
 
-	request, newRequestError := http.NewRequest(ctx.Request().Method, tokenlessURL, strings.NewReader(ctx.Values().GetString("requestBody")))
+	targetURL := ctx.Values().GetString("targetUrl")
+	if targetURL == "" {
+		targetURL = config.TargetHostname + ctx.Request().URL.RequestURI()
+	}
+
+	request, newRequestError := http.NewRequest(ctx.Request().Method, targetURL, strings.NewReader(ctx.Values().GetString("requestBody")))
+
+	if newRequestError != nil {
+		log.Error().Str("request", ctx.String()).Err(newRequestError).Msg("Error creating a new request in main handler")
+	}
 
 	for key, value := range ctx.Request().Header {
 		request.Header[key] = value
 	}
 
-	if newRequestError != nil {
-		log.Error().Str("request", ctx.String()).Err(newRequestError).Msg("Error creating a new request in main handler")
-	}
+	log.Debug().Msg("Executing request for URL : " + targetURL + " ...")
 	response, error := client.Do(request)
 
 	if error != nil {
