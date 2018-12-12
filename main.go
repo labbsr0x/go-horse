@@ -77,7 +77,17 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Values().Set("requestBody", string(requestBody))
 	}
 
-	before(ctx)
+	filterReturn := before(ctx)
+
+	if filterReturn.Err != nil {
+		if filterReturn.Status == 0 {
+			filterReturn.Status = http.StatusInternalServerError
+		}
+		ctx.StatusCode(filterReturn.Status)
+		ctx.ContentType("application/json")
+		ctx.WriteString(filterReturn.Err.Error())
+		return
+	}
 
 	targetURL := ctx.Values().GetString("targetUrl")
 	if targetURL == "" {
@@ -121,7 +131,7 @@ func ProxyHandler(ctx iris.Context) {
 	ctx.WriteString(ctx.Values().GetString("responseBody"))
 }
 
-func before(ctx iris.Context) {
+func before(ctx iris.Context) model.FilterReturn {
 	requestPath := ctx.Path()
 	log.Debug().Msg("Before the mainHandler: " + requestPath)
 	var requestBody []byte
@@ -133,21 +143,23 @@ func before(ctx iris.Context) {
 		ctx.Values().Set("requestBody", string(requestBody))
 	}
 
+	var result model.FilterReturn
 	for _, filter := range list.BeforeFilters() {
 		if filter.MatchURL(ctx) {
 			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
-			result := filter.Exec(ctx, string(requestBody))
+			result = filter.Exec(ctx, string(requestBody))
 			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
 			if result.Operation == model.Write {
 				log.Debug().Str("Body rewrite for filter - ", filter.Config().Name)
 				ctx.Values().Set("requestBody", result.Body)
 			}
 			if !result.Next {
-				log.Debug().Str("Filter chain canceled by filter - ", filter.Config().Name)
+				log.Debug().Str("Filter chain canceled by filter - ", filter.Config().Name).Msg("lero-lero")
 				break
 			}
 		}
 	}
+	return result
 }
 
 func after(ctx iris.Context) {
