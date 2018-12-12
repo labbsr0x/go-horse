@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"github.com/kataras/iris/core/errors"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -180,6 +181,16 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 		return errorReturnFilter(error)
 	}
 
+	if value, err := result.Get("error"); err == nil {
+		if value, err := value.ToString(); err == nil {
+			jsFunctionReturn.Err = errors.New(value)
+		} else {
+			return errorReturnFilter(error)
+		}
+	} else {
+		return errorReturnFilter(error)
+	}
+
 	return jsFunctionReturn
 }
 
@@ -286,6 +297,11 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Error().Msg("Error executing the request - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
+		response, _ := call.Otto.Object("({})")
+		response.Set("body", fmt.Sprintf("%#v", err))
+		response.Set("status", 0)
+		value, _ := otto.ToValue(response)
+		return value
 	}
 	defer resp.Body.Close()
 	if req.Body != nil {
