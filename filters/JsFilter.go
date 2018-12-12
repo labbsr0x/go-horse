@@ -89,6 +89,10 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 	js := otto.New()
 	js.Set("url", ctx.Request().URL.Path)
 
+	if body == "" {
+		body = "{}"
+	}
+
 	funcRet, error := js.Call("JSON.parse", nil, body)
 	if error != nil {
 		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing body string to JS object - js filter exec")
