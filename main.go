@@ -89,7 +89,7 @@ func ProxyHandler(ctx iris.Context) {
 		return
 	}
 
-	targetURL := ctx.Values().GetString("targetUrl")
+	targetURL := ctx.Values().GetString("targetEndpoint")
 	if targetURL == "" {
 		targetURL = config.TargetHostname + ctx.Request().URL.RequestURI()
 	}
