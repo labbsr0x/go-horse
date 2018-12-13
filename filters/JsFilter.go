@@ -87,7 +87,7 @@ func (jsFilter JsFilterModel) ExecResponse(ctx iris.Context, response *http.Resp
 func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionReturn {
 
 	js := otto.New()
-	js.Set("url", ctx.Request().URL.Path)
+	js.Set("url", ctx.Request().URL.String())
 
 	if body == "" {
 		body = "{}"
