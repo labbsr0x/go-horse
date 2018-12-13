@@ -1,6 +1,9 @@
 package util
 
 import (
+	"os"
+	"strings"
+
 	"github.com/kataras/iris"
 )
 
@@ -28,4 +31,12 @@ func RequestScopeList(ctx iris.Context) map[string]string {
 			values[key] = ctx.Values().GetString(key)
 		})
 	return values
+}
+
+// SetEnvVars lero lero
+func SetEnvVars(ctx iris.Context) {
+	for _, env := range os.Environ() {
+		pair := strings.Split(env, "=")
+		ctx.Values().Set("ENV_"+pair[0], pair[1])
+	}
 }
