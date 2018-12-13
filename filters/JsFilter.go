@@ -186,10 +186,12 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 	}
 
 	if value, err := result.Get("error"); err == nil {
-		if value, err := value.ToString(); err == nil {
-			jsFunctionReturn.Err = errors.New(value)
-		} else {
-			return errorReturnFilter(error)
+		if value.IsDefined() {
+			if value, err := value.ToString(); err == nil {
+				jsFunctionReturn.Err = errors.New(value)
+			} else {
+				return errorReturnFilter(error)
+			}
 		}
 	} else {
 		return errorReturnFilter(error)
