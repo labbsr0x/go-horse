@@ -69,7 +69,7 @@ func ProxyHandler(ctx iris.Context) {
 	// 	return
 	// }
 
-	if ctx.Values().Get("requestBody") == nil {
+	if ctx.Request().Body != nil {
 		requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
 		if erro != nil {
 			log.Error().Str("request", ctx.String()).Err(erro)
@@ -134,20 +134,12 @@ func ProxyHandler(ctx iris.Context) {
 func before(ctx iris.Context) model.FilterReturn {
 	requestPath := ctx.Path()
 	log.Debug().Msg("Before the mainHandler: " + requestPath)
-	var requestBody []byte
-	if ctx.Values().Get("requestBody") == nil {
-		requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
-		if erro != nil {
-			log.Error().Str("Error parsing request body : ", ctx.String()).Err(erro)
-		}
-		ctx.Values().Set("requestBody", string(requestBody))
-	}
 
 	var result model.FilterReturn
 	for _, filter := range list.BeforeFilters() {
 		if filter.MatchURL(ctx) {
 			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
-			result = filter.Exec(ctx, string(requestBody))
+			result = filter.Exec(ctx, ctx.Values().GetString("requestBody"))
 			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
 			if result.Operation == model.Write {
 				log.Debug().Str("Body rewrite for filter - ", filter.Config().Name)
