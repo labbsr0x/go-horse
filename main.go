@@ -94,7 +94,7 @@ func ProxyHandler(ctx iris.Context) {
 		targetURL = config.TargetHostname + ctx.Request().URL.RequestURI()
 	}
 
-	request, newRequestError := http.NewRequest(ctx.Request().Method, targetURL, strings.NewReader(ctx.Values().GetString("requestBody")))
+	request, newRequestError := http.NewRequest(ctx.Request().Method, config.TargetHostname+targetURL, strings.NewReader(ctx.Values().GetString("requestBody")))
 
 	if newRequestError != nil {
 		log.Error().Str("request", ctx.String()).Err(newRequestError).Msg("Error creating a new request in main handler")
