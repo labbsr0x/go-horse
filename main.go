@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/util"
+
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters/list"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/handlers"
@@ -49,6 +51,8 @@ func ProxyHandler(ctx iris.Context) {
 
 	// token, tokenlessURL, err := util.ExtractTokenFromURL(ctx)
 	log.Debug().Str("request", ctx.String())
+
+	util.SetEnvVars(ctx)
 	// log.Debug().Str("token", token)
 
 	// if err != nil {
