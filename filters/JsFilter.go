@@ -1,6 +1,7 @@
 package filters
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/kataras/iris/core/errors"
 	"io/ioutil"
@@ -304,7 +305,12 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 	if err != nil {
 		log.Error().Msg("Error executing the request - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
 		response, _ := call.Otto.Object("({})")
-		response.Set("body", fmt.Sprintf("%#v", err))
+		buf, marshalError := json.Marshal(err)
+		if marshalError == nil {
+			response.Set("body", fmt.Sprintf("%v", string(buf)))
+		} else {
+			response.Set("body", fmt.Sprintf("%#v", err))
+		}
 		response.Set("status", 0)
 		value, _ := otto.ToValue(response)
 		return value
