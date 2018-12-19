@@ -24,10 +24,10 @@ const (
 type Invoke int
 
 const (
-	// After After
-	After Invoke = 0
-	// Before After
-	Before Invoke = 1
+	// Response Response
+	Response Invoke = 0
+	// Request Request
+	Request Invoke = 1
 )
 
 // Filter lero-lero
@@ -79,14 +79,14 @@ func parseInvoke(invoke interface{}) Invoke {
 	intInvoke, ok := invoke.(int)
 	if ok {
 		if intInvoke == 1 {
-			return Before
+			return Request
 		}
-		return After
+		return Response
 	}
-	if invoke == filters.Before {
-		return Before
+	if invoke == filters.Request {
+		return Request
 	}
-	return After
+	return Response
 }
 
 // FilterGO lero-lero
