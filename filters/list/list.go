@@ -84,7 +84,8 @@ func Load() {
 			Response = append(Response, filter)
 		}
 	}
-	validateFilterOrder(All)
+	validateFilterOrder(Request)
+	validateFilterOrder(Response)
 	orderFilterModels(All, Request, Response)
 }
 
