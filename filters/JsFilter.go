@@ -1,11 +1,13 @@
 package filters
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/kataras/iris/core/errors"
 	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/plugins"
@@ -36,10 +38,10 @@ const (
 type Invoke int
 
 const (
-	// After After
-	After Invoke = 0
-	// Before After
-	Before Invoke = 1
+	// Response Response
+	Response Invoke = 0
+	// Request Request
+	Request Invoke = 1
 )
 
 // JsFilterModel lero-lero
@@ -87,7 +89,7 @@ func (jsFilter JsFilterModel) ExecResponse(ctx iris.Context, response *http.Resp
 func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionReturn {
 
 	js := otto.New()
-	js.Set("url", ctx.Request().URL.Path)
+	js.Set("url", ctx.Request().URL.String())
 
 	if body == "" {
 		body = "{}"
@@ -304,7 +306,12 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 	if err != nil {
 		log.Error().Msg("Error executing the request - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
 		response, _ := call.Otto.Object("({})")
-		response.Set("body", fmt.Sprintf("%#v", err))
+		buf, marshalError := json.Marshal(err)
+		if marshalError == nil {
+			response.Set("body", fmt.Sprintf("%v", string(buf)))
+		} else {
+			response.Set("body", fmt.Sprintf("%#v", err))
+		}
 		response.Set("status", 0)
 		value, _ := otto.ToValue(response)
 		return value
@@ -371,19 +378,24 @@ func readFromFile() map[string]string {
 }
 
 func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
-
 	var filterMoldels []JsFilterModel
 
+	fileNamePattern := regexp.MustCompile("^([0-9]{1,3})\\.(request|response)\\.(.*?)\\.js$")
+
 	for fileName, jsFunc := range jsFilterFunctions {
+		nameProperties := fileNamePattern.FindStringSubmatch(fileName)
+		fmt.Printf("FindStringSubmatch %#v\n", fileNamePattern.FindStringSubmatch(fileName))
+		if nameProperties == nil || len(nameProperties) < 4 {
+			log.Error().Str("file", fileName).Msg("Error file name")
+			continue
+		}
+
+		order := nameProperties[1]
+		invokeTime := nameProperties[2]
+
 		js := otto.New()
 
-		invokeObj, error := js.Object("({AFTER : 0, BEFORE : 1})")
-		if error != nil {
-			log.Error().Err(error).Str("file", fileName).Msg("Error creating invoke object - parseFilterObject")
-		}
-		js.Set("invoke", invokeObj)
-
-		funcFilterDefinition, error := js.Call("(function(invoke){return"+jsFunc+"})", nil, invokeObj)
+		funcFilterDefinition, error := js.Call("(function(){return"+jsFunc+"})", nil, nil)
 		if error != nil {
 			log.Error().Err(error).Str("file", fileName).Msg("Error on JS object definition - parseFilterObject")
 			continue
@@ -393,19 +405,18 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 
 		filterDefinition := JsFilterModel{}
 
-		if value, err := filter.Get("invoke"); err == nil {
-			if value, err := value.ToInteger(); err == nil {
-				if value == 1 {
-					filterDefinition.Invoke = Before
-				} else {
-					filterDefinition.Invoke = After
-				}
-			} else {
-				log.Error().Err(err).Str("file", fileName).Str("field", "invoke").Msg("Error on JS filter definition - parseFilterObject")
-			}
+		if invokeTime == "request" {
+			filterDefinition.Invoke = Request
 		} else {
-			log.Error().Err(err).Str("file", fileName).Str("field", "invoke").Msg("Error on JS filter definition - parseFilterObject")
+			filterDefinition.Invoke = Response
 		}
+
+		oderInt, orderParserError := strconv.Atoi(order)
+		if orderParserError != nil {
+			log.Error().Err(error).Str("file", fileName).Msg("Error on oder int conversion - parseFilterObject")
+			continue
+		}
+		filterDefinition.Order = oderInt
 
 		if value, err := filter.Get("name"); err == nil {
 			if value, err := value.ToString(); err == nil {
@@ -415,16 +426,6 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 			}
 		} else {
 			log.Error().Err(err).Str("file", fileName).Str("field", "name").Msg("Error on JS filter definition - parseFilterObject")
-		}
-
-		if value, err := filter.Get("order"); err == nil {
-			if value, err := value.ToInteger(); err == nil {
-				filterDefinition.Order = int(value)
-			} else {
-				log.Error().Err(err).Str("file", fileName).Str("field", "order").Msg("Error on JS filter definition - parseFilterObject")
-			}
-		} else {
-			log.Error().Err(err).Str("file", fileName).Str("field", "order").Msg("Error on JS filter definition - parseFilterObject")
 		}
 
 		if value, err := filter.Get("pathPattern"); err == nil {

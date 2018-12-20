@@ -19,29 +19,29 @@ import (
 // All lero lero
 var All []model.Filter
 
-// Before lero lero
-var Before []model.Filter
+// Request lero lero
+var Request []model.Filter
 
-// After lero lero
-var After []model.Filter
+// Response lero lero
+var Response []model.Filter
 
 var updateLock = sync.WaitGroup{}
 var isUpdating = false
 
-// BeforeFilters lero lero
-func BeforeFilters() []model.Filter {
+// RequestFilters lero lero
+func RequestFilters() []model.Filter {
 	if isUpdating {
 		updateLock.Wait()
 	}
-	return Before
+	return Request
 }
 
-// AfterFilters lero lero
-func AfterFilters() []model.Filter {
+// ResponseFilters lero lero
+func ResponseFilters() []model.Filter {
 	if isUpdating {
 		updateLock.Wait()
 	}
-	return After
+	return Response
 }
 
 func updateFilters() {
@@ -61,31 +61,32 @@ func init() {
 func Load() {
 
 	All = All[:0]
-	Before = Before[:0]
-	After = After[:0]
+	Request = Request[:0]
+	Response = Response[:0]
 
 	jsFilters := filters.Load()
 	goFilters := plugins.Load()
 	for _, jsfilter := range jsFilters {
 		filter := model.NewFilterJS(jsfilter)
 		All = append(All, filter)
-		if filter.Config().Invoke == model.Before {
-			Before = append(Before, filter)
+		if filter.Config().Invoke == model.Request {
+			Request = append(Request, filter)
 		} else {
-			After = append(After, filter)
+			Response = append(Response, filter)
 		}
 	}
 	for _, gofilter := range goFilters {
 		filter := model.NewFilterGO(gofilter)
 		All = append(All, filter)
-		if filter.Config().Invoke == model.Before {
-			Before = append(Before, filter)
+		if filter.Config().Invoke == model.Request {
+			Request = append(Request, filter)
 		} else {
-			After = append(After, filter)
+			Response = append(Response, filter)
 		}
 	}
-	validateFilterOrder(All)
-	orderFilterModels(All, Before, After)
+	validateFilterOrder(Request)
+	validateFilterOrder(Response)
+	orderFilterModels(All, Request, Response)
 }
 
 func orderFilterModels(models ...[]model.Filter) {

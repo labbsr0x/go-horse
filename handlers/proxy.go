@@ -41,6 +41,7 @@ func init() {
 }
 
 // ProxyHandler lero-lero
+// ProxyHandler lero-lero
 func ProxyHandler(ctx iris.Context) {
 
 	log.Debug().Str("request", ctx.String()).Msg("Receiving request")
@@ -55,7 +56,7 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Values().Set("requestBody", string(requestBody))
 	}
 
-	filterReturn := before(ctx)
+	filterReturn := runRequestFilters(ctx)
 
 	if filterReturn.Err != nil {
 		if filterReturn.Status == 0 {
@@ -205,7 +206,7 @@ func ProxyHandler(ctx iris.Context) {
 
 	ctx.Values().Set("responseBody", string(responseBody))
 
-	after(ctx)
+	runResponseFilters(ctx)
 
 	ctx.ContentType("application/json")
 	ctx.StatusCode(response.StatusCode)
@@ -213,12 +214,12 @@ func ProxyHandler(ctx iris.Context) {
 
 }
 
-func before(ctx iris.Context) model.FilterReturn {
+func runRequestFilters(ctx iris.Context) model.FilterReturn {
 	requestPath := ctx.Path()
-	log.Debug().Msg("Before the mainHandler: " + requestPath)
+	log.Debug().Msg("Request the mainHandler: " + requestPath)
 
 	var result model.FilterReturn
-	for _, filter := range list.BeforeFilters() {
+	for _, filter := range list.RequestFilters() {
 		if filter.MatchURL(ctx) {
 			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
 			result = filter.Exec(ctx, ctx.Values().GetString("requestBody"))
@@ -236,11 +237,11 @@ func before(ctx iris.Context) model.FilterReturn {
 	return result
 }
 
-func after(ctx iris.Context) {
+func runResponseFilters(ctx iris.Context) {
 	requestPath := ctx.Path()
-	log.Debug().Msg("After the mainHandler:" + requestPath)
+	log.Debug().Msg("Response the mainHandler:" + requestPath)
 
-	for _, filter := range list.AfterFilters() {
+	for _, filter := range list.ResponseFilters() {
 		if filter.MatchURL(ctx) {
 			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
 			result := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
