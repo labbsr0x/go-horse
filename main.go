@@ -1,33 +1,53 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
-	"strings"
-
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/util"
 
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters/list"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/handlers"
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/model"
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/sockClient"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/recover"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
-var client = sockclient.Get(config.DockerSockURL)
-
 func main() {
 	app := iris.New()
 	app.Use(recover.New())
-	app.Post("/login", handlers.Login)
-	app.Any("*", ProxyHandler)
+	app.Any("*", handlers.ProxyHandler)
 	app.Run(iris.Addr(config.Port))
+	// os.Setenv("DOCKER_API_VERSION", "1.39")
+	// cli, err := client.NewEnvClient()
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	// if err != nil {
+	// 	panic(err)
+	// }
+
+	// for _, container := range containers {
+	// 	fmt.Printf("%s %s\n", container.ID[:10], container.Image)
+	// }
+	// cliflect := reflect.ValueOf(&cli)
+	// fmt.Println(cliflect.NumMethod())
+	// post := reflect.ValueOf(&cli).MethodByName("postRaw")
+	// private.SetAccessible(post)
+
+	// var ctx context.Context
+
+	// params := make([]reflect.Value, 5)
+	// params[0] = reflect.ValueOf(ctx)
+
+	// // ctx, "/v1.39/containers/d2c491d0a221/wait?condition=next-exit"
+
+	// // ctx context.Context, path string, query url.Values, body io.Reader, headers map[string][]string) (serverResponse, error
+	// response := post.Call(params) // stdout map[k:[v]]
+	// for val := range response {
+	// 	fmt.Println(fmt.Sprintf("%#v", val))
+	// }
+
 }
 
 func init() {
@@ -46,135 +66,59 @@ func init() {
 
 }
 
-// ProxyHandler lero-lero
-func ProxyHandler(ctx iris.Context) {
+// conn, err := net.DialTimeout("unix", "/var/run/docker.sock", time.Duration(10*time.Second))
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	config, err := websocket.NewConfig(
+// 		"/containers/7f4c141f99a9f0ab8396627de3ca4817064868680ba7a46ab51c7c4da5f8db4f/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
+// 		"http://localhost",
+// 	)
+// 	if err != nil {
+// 		fmt.Println(err)
+// 	}
+// 	ws, err := websocket.NewClient(config, conn)
+// 	defer ws.Close()
 
-	// token, tokenlessURL, err := util.ExtractTokenFromURL(ctx)
-	log.Debug().Str("request", ctx.String())
+// 	// expected := []byte("hello")
+// 	// actual := make([]byte, len(expected))
 
-	util.SetEnvVars(ctx)
-	// log.Debug().Str("token", token)
+// 	// outChan := make(chan error)
+// 	// go func() {
+// 	// 	_, err := io.ReadFull(ws, actual)
+// 	// 	outChan <- err
+// 	// 	close(outChan)
+// 	// }()
 
-	// if err != nil {
-	// 	ctx.StatusCode(400)
-	// 	ctx.JSON(iris.Map{"message": err.Error()})
-	// 	ctx.Next()
-	// 	return
-	// }
+// 	// inChan := make(chan error)
+// 	// go func() {
+// 	// 	_, err := ws.Write(expected)
+// 	// 	inChan <- err
+// 	// 	close(inChan)
+// 	// }()
 
-	// isAllowed := security.VerifyPolicy(ctx.Request().Method, tokenlessURL)
+// 	// select {
+// 	// case err := <-inChan:
+// 	// 	fmt.Println(err)
+// 	// case <-time.After(5 * time.Second):
+// 	// 	fmt.Println("TIMEOUT")
+// 	// }
 
-	// if !isAllowed {
-	// 	ctx.StatusCode(403)
-	// 	ctx.JSON(iris.Map{
-	// 		"message": "Vivaldo disse : 'NÃO!'",
-	// 	})
-	// 	ctx.Next()
-	// 	return
-	// }
+// 	// select {
+// 	// case err := <-outChan:
+// 	// 	fmt.Println(err)
+// 	// case <-time.After(5 * time.Second):
+// 	// 	fmt.Println("TIMEOUT")
+// 	// }
 
-	if ctx.Request().Body != nil {
-		requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
-		if erro != nil {
-			log.Error().Str("request", ctx.String()).Err(erro)
-		}
-		ctx.Values().Set("requestBody", string(requestBody))
-	}
-
-	filterReturn := before(ctx)
-
-	if filterReturn.Err != nil {
-		if filterReturn.Status == 0 {
-			filterReturn.Status = http.StatusInternalServerError
-		}
-		ctx.StatusCode(filterReturn.Status)
-		ctx.ContentType("application/json")
-		ctx.WriteString(filterReturn.Err.Error())
-		return
-	}
-
-	targetURL := ctx.Values().GetString("targetEndpoint")
-	if targetURL == "" {
-		targetURL = config.TargetHostname + ctx.Request().URL.RequestURI()
-	}
-
-	request, newRequestError := http.NewRequest(ctx.Request().Method, config.TargetHostname+targetURL, strings.NewReader(ctx.Values().GetString("requestBody")))
-
-	if newRequestError != nil {
-		log.Error().Str("request", ctx.String()).Err(newRequestError).Msg("Error creating a new request in main handler")
-	}
-
-	for key, value := range ctx.Request().Header {
-		request.Header[key] = value
-	}
-
-	log.Debug().Msg("Executing request for URL : " + targetURL + " ...")
-	response, error := client.Do(request)
-
-	if error != nil {
-		log.Error().Str("request", ctx.String()).Err(error).Msg("Error executing the request in main handler")
-		ctx.Next()
-	}
-
-	responseBody, erro := ioutil.ReadAll(response.Body)
-	if erro != nil {
-		ctx.WriteString("Erro parsear a resposta do token - " + erro.Error())
-		log.Error().Str("request", ctx.String()).Err(erro).Msg("Error parsing response body in main handler")
-	}
-
-	for key, value := range response.Header {
-		ctx.Header(key, value[0])
-	}
-
-	ctx.Values().Set("responseBody", string(responseBody))
-
-	after(ctx)
-
-	ctx.ContentType("application/json")
-	ctx.StatusCode(response.StatusCode)
-	ctx.WriteString(ctx.Values().GetString("responseBody"))
-}
-
-func before(ctx iris.Context) model.FilterReturn {
-	requestPath := ctx.Path()
-	log.Debug().Msg("Before the mainHandler: " + requestPath)
-
-	var result model.FilterReturn
-	for _, filter := range list.BeforeFilters() {
-		if filter.MatchURL(ctx) {
-			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
-			result = filter.Exec(ctx, ctx.Values().GetString("requestBody"))
-			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
-			if result.Operation == model.Write {
-				log.Debug().Str("Body rewrite for filter - ", filter.Config().Name)
-				ctx.Values().Set("requestBody", result.Body)
-			}
-			if !result.Next {
-				log.Debug().Str("Filter chain canceled by filter - ", filter.Config().Name).Msg("lero-lero")
-				break
-			}
-		}
-	}
-	return result
-}
-
-func after(ctx iris.Context) {
-	requestPath := ctx.Path()
-	log.Debug().Msg("After the mainHandler:" + requestPath)
-
-	for _, filter := range list.AfterFilters() {
-		if filter.MatchURL(ctx) {
-			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
-			result := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
-			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
-			if result.Operation == model.Write {
-				log.Debug().Str("Body rewrite for filter - ", filter.Config().Name)
-				ctx.Values().Set("responseBody", result.Body)
-			}
-			if !result.Next {
-				log.Debug().Str("Filter chain canceled by filter - ", filter.Config().Name)
-				break
-			}
-		}
-	}
-}
+// 	for err == nil {
+// 		var message string
+// 		err = websocket.Message.Receive(ws, &message)
+// 		// if err != nil {
+// 		// 	fmt.Printf("Error::: %s\n", err.Error())
+// 		// 	break
+// 		// }
+// 		if len(message) > 0 {
+// 			fmt.Println("message : " + message)
+// 		}
+// 	}
