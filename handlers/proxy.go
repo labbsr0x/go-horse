@@ -16,7 +16,6 @@ import (
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/model"
 	sockclient "gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/sockClient"
 	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/util"
-	"github.com/docker/cli/cli"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -40,7 +39,6 @@ func init() {
 	}
 }
 
-// ProxyHandler lero-lero
 // ProxyHandler lero-lero
 func ProxyHandler(ctx iris.Context) {
 
@@ -140,14 +138,13 @@ func ProxyHandler(ctx iris.Context) {
 					fmt.Fprintf(conn, "%s", msg)
 				case errr := <-msgsErr:
 					fmt.Println("errrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr ", errr)
-					conn.Close()
-					return
 				}
 			}
+			resp.Close()
+			conn.Close()
+			ctx.EndRequest()
 		}()
-
 		return
-
 	}
 
 	if strings.Contains(targetURL, "wait") {
@@ -161,16 +158,11 @@ func ProxyHandler(ctx iris.Context) {
 		go func() {
 			select {
 			case result := <-resp:
-				if result.Error != nil {
-					respostaWait = result
-					finish = true
-				}
-				if result.StatusCode != 0 {
-					fmt.Println(cli.StatusError{StatusCode: int(result.StatusCode)})
-					finish = true
-				}
+				respostaWait = result
+				finish = true
 			case err0 := <-err:
 				erroWait = err0
+				finish = true
 			}
 		}()
 
@@ -178,14 +170,17 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Header("Transfer-Encoding", "chunked")
 
 		ctx.StreamWriter(func(w io.Writer) bool {
+			time.Sleep(time.Second / 2)
 			if finish {
-				fmt.Fprintf(w, "%#v", respostaWait)
+				if respostaWait.Error != nil {
+					fmt.Fprintf(w, "{\"StatusCode\": %d, \"Error\": {\"Message\": \"%s\"}}", respostaWait.StatusCode, respostaWait.Error.Message)
+				}
+				fmt.Fprintf(w, "{\"StatusCode\": %d}", respostaWait.StatusCode)
+				defer func() { ctx.Next() }()
 				return false
 			}
 			return true
 		})
-
-		return
 
 	}
 
