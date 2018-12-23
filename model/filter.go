@@ -3,9 +3,9 @@ package model
 import (
 	"regexp"
 
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/plugins"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/plugins"
 
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/filters"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 )

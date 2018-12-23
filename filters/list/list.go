@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/plugins"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/plugins"
 
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/filters"
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/model"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/filters"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/model"
 	"github.com/radovskyb/watcher"
 	"github.com/rs/zerolog/log"
 )

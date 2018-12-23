@@ -3,22 +3,23 @@ package filters
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kataras/iris/core/errors"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/plugins"
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/util"
+	"github.com/kataras/iris/core/errors"
 
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/security"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/plugins"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/util"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/security"
 
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 
-	"gitex.labbs.com.br/labbsr0x/sandman-acl-proxy/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/config"
 	"github.com/robertkrimen/otto"
 )
 
