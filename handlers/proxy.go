@@ -128,22 +128,22 @@ func ProxyHandler(ctx iris.Context) {
 			fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
 		}
 
-		go func() {
-			// attachWs(func(message string) {
-			// 	fmt.Fprintf(conn, "%b", message)
-			// })
-			for {
-				select {
-				case msg := <-msgs:
-					fmt.Fprintf(conn, "%s", msg)
-				case errr := <-msgsErr:
-					fmt.Println("errrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr ", errr)
-				}
+		// attachWs(func(message string) {
+		// 	fmt.Fprintf(conn, "%b", message)
+		// })
+	msgLoop:
+		for {
+			select {
+			case msg := <-msgs:
+				fmt.Fprintf(conn, "%s", msg)
+			case <-msgsErr:
+				defer conn.Close()
+				defer resp.Close()
+				break msgLoop
 			}
-			resp.Close()
-			conn.Close()
-			ctx.EndRequest()
-		}()
+		}
+		ctx.StopExecution()
+		ctx.EndRequest()
 		return
 	}
 
