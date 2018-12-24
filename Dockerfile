@@ -1,6 +1,6 @@
 FROM golang:latest 
 
-ENV p /go/src/gitex.labbs.com.br/labbsr0x/sandman-acl-proxy
+ENV p /go/src/gitex.labbs.com.br/labbsr0x/proxy/go-horse
 
 RUN mkdir -p ${p}
 ADD . ${p}

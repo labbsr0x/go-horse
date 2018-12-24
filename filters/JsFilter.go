@@ -11,15 +11,15 @@ import (
 
 	"github.com/kataras/iris/core/errors"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/plugins"
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/util"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/security"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/security"
 
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"github.com/robertkrimen/otto"
 )
 
@@ -139,7 +139,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 
 	if error != nil {
 		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing return value from filter - js filter exec")
-		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro sandman acl : \"" + error.Error() + "}"}
+		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro proxy go-horse : \"" + error.Error() + "}"}
 	}
 
 	jsFunctionReturn := JsFilterFunctionReturn{}

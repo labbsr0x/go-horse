@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/plugins"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/config"
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/filters"
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/model"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/model"
 	"github.com/radovskyb/watcher"
 	"github.com/rs/zerolog/log"
 )

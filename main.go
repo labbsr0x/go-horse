@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/config"
-	"gitex.labbs.com.br/labbsr0x/proxy/sandman-acl-proxy/handlers"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/handlers"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/recover"
 	"github.com/rs/zerolog"
