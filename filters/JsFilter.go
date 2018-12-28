@@ -14,8 +14,6 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/security"
-
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 
@@ -77,8 +75,8 @@ func (jsFilter JsFilterModel) MatchURL(ctx iris.Context) bool {
 	return jsFilter.regex.MatchString(ctx.RequestPath(false))
 }
 
-// ExecResponse lerol ero
-func (jsFilter JsFilterModel) ExecResponse(ctx iris.Context, response *http.Response) JsFilterFunctionReturn {
+// ExecResponse lero lero
+func (jsFilter JsFilterModel) ExecResponse(ctx iris.Context, response *http.Response) (fnReturn JsFilterFunctionReturn, er error) {
 	body, erro := ioutil.ReadAll(response.Body)
 	if erro != nil {
 		log.Error().Str("plugin_name", jsFilter.Name).Err(erro).Msg("Error parsing body")
@@ -87,7 +85,7 @@ func (jsFilter JsFilterModel) ExecResponse(ctx iris.Context, response *http.Resp
 }
 
 // Exec lero lero
-func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFunctionReturn {
+func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunctionReturn, error) {
 
 	js := otto.New()
 	js.Set("url", ctx.Request().URL.String())
@@ -110,7 +108,6 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error creating operation object - js filter exec")
 	}
 	js.Set("operation", operation)
-	js.Set("verifyPolicy", veryfyPolicyToJSContext)
 	js.Set("getVar", func(call otto.FunctionCall) otto.Value { return requestScopeGetToJSContext(ctx, call) })
 	js.Set("setVar", func(call otto.FunctionCall) otto.Value { return requestScopeSetToJSContext(ctx, call) })
 	js.Set("listVar", func(call otto.FunctionCall) otto.Value { return requestScopeListToJSContext(ctx, call) })
@@ -129,7 +126,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 
 	js.Set("plugins", pluginsJsObj)
 
-	returnValue, error := js.Run("(" + jsFilter.Function + ")(url, body, operation, method, verifyPolicy, getVar, setVar, listVar, headers, request, plugins)")
+	returnValue, error := js.Run("(" + jsFilter.Function + ")(url, body, operation, method, getVar, setVar, listVar, headers, request, plugins)")
 
 	if error != nil {
 		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error executing filter - js filter exec")
@@ -139,7 +136,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 
 	if error != nil {
 		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing return value from filter - js filter exec")
-		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro proxy go-horse : \"" + error.Error() + "}"}
+		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro proxy go-horse : \"" + error.Error() + "}"}, error
 	}
 
 	jsFunctionReturn := JsFilterFunctionReturn{}
@@ -200,29 +197,12 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) JsFilterFuncti
 		return errorReturnFilter(error)
 	}
 
-	return jsFunctionReturn
+	return jsFunctionReturn, nil
 }
 
-func errorReturnFilter(error error) JsFilterFunctionReturn {
+func errorReturnFilter(error error) (JsFilterFunctionReturn, error) {
 	log.Error().Err(error).Msg("Error parsing filter return value - js filter exec")
-	return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Proxy error : \"" + error.Error() + "}"}
-}
-
-func veryfyPolicyToJSContext(call otto.FunctionCall) otto.Value { //
-	method, error := call.Argument(0).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing veryfyPolicyToJSContext method field - js filter exec")
-	}
-	url, error := call.Argument(1).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing veryfyPolicyToJSContext url field - js filter exec")
-	}
-	allowed := security.VerifyPolicy(method, url)
-	result, error := otto.ToValue(allowed)
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing veryfyPolicyToJSContext function field - js filter exec")
-	}
-	return result
+	return JsFilterFunctionReturn{Body: "{\"message\" : \"Proxy error : \"" + error.Error() + "}"}, error
 }
 
 func requestScopeGetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value { //

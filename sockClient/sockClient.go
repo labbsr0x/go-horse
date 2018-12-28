@@ -11,10 +11,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const defaultTimeout = 32 * time.Second
+const defaultTimeout = 5 * time.Minute
 
+// ErrRedirect lero lero
 var ErrRedirect = errors.New("unexpected redirect in response")
 
+// CheckRedirect lero lero
 func CheckRedirect(req *http.Request, via []*http.Request) error {
 	if via[0].Method == http.MethodGet {
 		return http.ErrUseLastResponse
@@ -32,12 +34,12 @@ func Get(u string) *http.Client {
 	transport := new(http.Transport)
 	transport.DisableCompression = true
 	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	// transport.DisableKeepAlives = true
-	transport.TLSHandshakeTimeout = 5 * time.Second
+	transport.TLSHandshakeTimeout = 30 * time.Second
+	transport.IdleConnTimeout = 5 * time.Minute
 	// transport.DisableKeepAlives = true
 	path := url.Path
 	transport.Dial = func(_, _ string) (net.Conn, error) {
 		return net.DialTimeout("unix", path, defaultTimeout)
 	}
-	return &http.Client{Transport: transport, CheckRedirect: CheckRedirect, Timeout: time.Second * 10}
+	return &http.Client{Transport: transport, CheckRedirect: CheckRedirect, Timeout: time.Minute * 5}
 }

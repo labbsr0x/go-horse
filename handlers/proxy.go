@@ -1,27 +1,21 @@
 package handlers
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/list"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/model"
 	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/net/websocket"
 )
 
 var sockClient = sockclient.Get(config.DockerSockURL)
@@ -54,15 +48,11 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Values().Set("requestBody", string(requestBody))
 	}
 
-	filterReturn := runRequestFilters(ctx)
+	// mussum was here
+	_, erris := runRequestFilters(ctx)
 
-	if filterReturn.Err != nil {
-		if filterReturn.Status == 0 {
-			filterReturn.Status = http.StatusInternalServerError
-		}
-		ctx.StatusCode(filterReturn.Status)
-		ctx.ContentType("application/json")
-		ctx.WriteString(filterReturn.Err.Error())
+	if erris != nil {
+		ctx.StopExecution()
 		return
 	}
 
@@ -85,108 +75,31 @@ func ProxyHandler(ctx iris.Context) {
 
 	response, erre := sockClient.Do(request)
 
-	if strings.Contains(targetURL, "attach") {
-
-		context := context.Background()
-		options := types.ContainerAttachOptions{}
-		options.Stdout = true
-		options.Stderr = true
-		options.Stream = true
-		resp, err := dockerCli.ContainerAttach(context, "teste", options)
-
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		msgs := make(chan []byte)
-		msgsErr := make(chan error)
-
-		go func() {
-			for {
-				msg, er := resp.Reader.ReadBytes('\n')
-				if er != nil {
-					msgsErr <- er
-					return
-				}
-				msgs <- msg
-			}
-		}()
-
-		_, upgrade := ctx.Request().Header["Upgrade"]
-
-		conn, _, err := ctx.ResponseWriter().Hijack()
-		if err != nil {
-			fmt.Println("ERRO >>>>>>>>>>>>>> ", err)
-		}
-
-		conn.Write([]byte{})
-
-		if upgrade {
-			fmt.Fprintf(conn, "HTTP/1.1 101 UPGRADED\r\nContent-Type: application/vnd.docker.raw-stream\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n")
-		} else {
-			fmt.Fprintf(conn, "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.docker.raw-stream\r\n\r\n")
-		}
-
-		// attachWs(func(message string) {
-		// 	fmt.Fprintf(conn, "%b", message)
-		// })
-	msgLoop:
-		for {
-			select {
-			case msg := <-msgs:
-				fmt.Fprintf(conn, "%s", msg)
-			case <-msgsErr:
-				defer conn.Close()
-				defer resp.Close()
-				break msgLoop
-			}
-		}
-		ctx.StopExecution()
-		ctx.EndRequest()
+	if erre != nil {
+		log.Error().Str("request", ctx.String()).Err(erre).Msg("Error executing the request in main handler")
+		ctx.Next()
 		return
 	}
 
-	if strings.Contains(targetURL, "wait") {
-		context := context.Background()
-		resp, err := dockerCli.ContainerWait(context, "teste", container.WaitConditionNextExit)
+	defer response.Body.Close()
 
-		var respostaWait container.ContainerWaitOKBody
-		var erroWait error = nil
-		finish := false
-
-		go func() {
-			select {
-			case result := <-resp:
-				respostaWait = result
-				finish = true
-			case err0 := <-err:
-				erroWait = err0
-				finish = true
-			}
-		}()
+	if strings.Contains(targetURL, "build") {
 
 		ctx.ContentType("application/json")
 		ctx.Header("Transfer-Encoding", "chunked")
 
 		ctx.StreamWriter(func(w io.Writer) bool {
-			time.Sleep(time.Second / 2)
-			if finish {
-				if respostaWait.Error != nil {
-					fmt.Fprintf(w, "{\"StatusCode\": %d, \"Error\": {\"Message\": \"%s\"}}", respostaWait.StatusCode, respostaWait.Error.Message)
-				}
-				fmt.Fprintf(w, "{\"StatusCode\": %d}", respostaWait.StatusCode)
-				defer func() { ctx.Next() }()
+			var buf = make([]byte, 1024)
+			read, er := response.Body.Read(buf)
+			if er != nil || er == io.EOF {
 				return false
 			}
+			w.Write(buf[:read])
 			return true
 		})
+		ctx.StopExecution()
+		return
 
-	}
-
-	if erre != nil {
-		log.Error().Str("request", ctx.String()).Err(erre).Msg("Error executing the request in main handler")
-		ctx.Next()
 	}
 
 	responseBody, erro := ioutil.ReadAll(response.Body)
@@ -201,7 +114,11 @@ func ProxyHandler(ctx iris.Context) {
 
 	ctx.Values().Set("responseBody", string(responseBody))
 
-	runResponseFilters(ctx)
+	errr := runResponseFilters(ctx)
+
+	if errr != nil {
+		log.Error().Err(errr).Msg("Erro ao executar filtros do response")
+	}
 
 	ctx.ContentType("application/json")
 	ctx.StatusCode(response.StatusCode)
@@ -209,15 +126,14 @@ func ProxyHandler(ctx iris.Context) {
 
 }
 
-func runRequestFilters(ctx iris.Context) model.FilterReturn {
+func runRequestFilters(ctx iris.Context) (result model.FilterReturn, err error) {
 	requestPath := ctx.Path()
 	log.Debug().Msg("Request the mainHandler: " + requestPath)
 
-	var result model.FilterReturn
 	for _, filter := range list.RequestFilters() {
 		if filter.MatchURL(ctx) {
 			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
-			result = filter.Exec(ctx, ctx.Values().GetString("requestBody"))
+			result, err = filter.Exec(ctx, ctx.Values().GetString("requestBody"))
 			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
 			if result.Operation == model.Write {
 				log.Debug().Str("Body rewrite for filter - ", filter.Config().Name)
@@ -229,17 +145,30 @@ func runRequestFilters(ctx iris.Context) model.FilterReturn {
 			}
 		}
 	}
-	return result
+
+	if err != nil {
+		if result.Status == 0 {
+			result.Status = http.StatusInternalServerError
+		}
+		ctx.StatusCode(result.Status)
+		ctx.ContentType("application/json")
+		ctx.WriteString(err.Error())
+	}
+
+	return
 }
 
-func runResponseFilters(ctx iris.Context) {
+func runResponseFilters(ctx iris.Context) (err error) {
 	requestPath := ctx.Path()
 	log.Debug().Msg("Response the mainHandler:" + requestPath)
 
 	for _, filter := range list.ResponseFilters() {
 		if filter.MatchURL(ctx) {
 			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
-			result := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
+			result, err := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
+			if err != nil {
+				log.Error().Err(err).Msgf("Erro no retorno do filtro : %s", filter.Config().Name)
+			}
 			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
 			if result.Operation == model.Write {
 				log.Debug().Str("Body rewrite for filter - ", filter.Config().Name)
@@ -251,68 +180,6 @@ func runResponseFilters(ctx iris.Context) {
 			}
 		}
 	}
-}
 
-func attachWs(cbMessage func(msg string)) {
-	conn, err := net.DialTimeout("unix", "/var/run/docker.sock", time.Duration(10*time.Second))
-	if err != nil {
-		fmt.Println(err)
-	}
-	config, err := websocket.NewConfig(
-		"/containers/teste/attach/ws?stream=1&stdin=1&stdout=1&stderr=1",
-		"http://localhost",
-	)
-	if err != nil {
-		fmt.Println(err)
-	}
-	ws, err := websocket.NewClient(config, conn)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	defer ws.Close()
-
-	// expected := []byte("hello")
-	// actual := make([]byte, len(expected))
-
-	// outChan := make(chan error)
-	// go func() {
-	// 	_, err := io.ReadFull(ws, actual)
-	// 	outChan <- err
-	// 	close(outChan)
-	// }()
-
-	// inChan := make(chan error)
-	// go func() {
-	// 	_, err := ws.Write(expected)
-	// 	inChan <- err
-	// 	close(inChan)
-	// }()
-
-	// select {
-	// case err := <-inChan:
-	// 	fmt.Println(err)
-	// case <-time.After(5 * time.Second):
-	// 	fmt.Println("TIMEOUT")
-	// }
-
-	// select {
-	// case err := <-outChan:
-	// 	fmt.Println(err)
-	// case <-time.After(5 * time.Second):
-	// 	fmt.Println("TIMEOUT")
-	// }
-
-	for err == nil {
-		var message string
-		err = websocket.Message.Receive(ws, &message)
-		if err != nil {
-			fmt.Printf("Error:::WEBSOCKET ATTACH >:>> %s\n", err.Error())
-			break
-		}
-		if len(message) > 0 {
-			cbMessage(message)
-		}
-	}
+	return
 }

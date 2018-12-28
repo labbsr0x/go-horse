@@ -33,7 +33,7 @@ const (
 // Filter lero-lero
 type Filter interface {
 	Config() FilterConfig
-	Exec(ctx iris.Context, requestBody string) FilterReturn
+	Exec(ctx iris.Context, requestBody string) (FilterReturn, error)
 	MatchURL(ctx iris.Context) bool
 }
 
@@ -120,9 +120,12 @@ func (filterJs FilterJS) Config() FilterConfig {
 }
 
 // Exec lero-lero
-func (filterJs FilterJS) Exec(ctx iris.Context, requestBody string) FilterReturn {
-	jsReturn := filterJs.innerType.Exec(ctx, requestBody)
-	return FilterReturn{jsReturn.Next, jsReturn.Body, jsReturn.Status, parseOperation(jsReturn.Operation), jsReturn.Err}
+func (filterJs FilterJS) Exec(ctx iris.Context, requestBody string) (FilterReturn, error) {
+	jsReturn, error := filterJs.innerType.Exec(ctx, requestBody)
+	if error != nil {
+		return FilterReturn{}, error
+	}
+	return FilterReturn{jsReturn.Next, jsReturn.Body, jsReturn.Status, parseOperation(jsReturn.Operation), jsReturn.Err}, nil
 }
 
 // MatchURL lero-lero
@@ -136,9 +139,9 @@ func (filterGo FilterGO) Config() FilterConfig {
 }
 
 // Exec lero-lero
-func (filterGo FilterGO) Exec(ctx iris.Context, requestBody string) FilterReturn {
+func (filterGo FilterGO) Exec(ctx iris.Context, requestBody string) (FilterReturn, error) {
 	Next, Body, Status, Operation, Err := filterGo.innerType.Exec(ctx, requestBody)
-	return FilterReturn{Next, Body, Status, parseOperation(Operation), Err}
+	return FilterReturn{Next, Body, Status, parseOperation(Operation), Err}, Err
 }
 
 // NewFilterGO lero-lero
