@@ -197,7 +197,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 		return errorReturnFilter(error)
 	}
 
-	return jsFunctionReturn, nil
+	return jsFunctionReturn, jsFunctionReturn.Err
 }
 
 func errorReturnFilter(error error) (JsFilterFunctionReturn, error) {
