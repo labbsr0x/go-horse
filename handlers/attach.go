@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// AtachHandler lero lero
+// AtachHandler handle attach command
 func AtachHandler(ctx iris.Context) {
 
 	util.SetEnvVars(ctx)
@@ -58,7 +58,7 @@ func AtachHandler(ctx iris.Context) {
 
 	conn, _, err := ctx.ResponseWriter().Hijack()
 	if err != nil {
-		fmt.Println("ERRO >>>>>>>>>>>>>> ", err)
+		log.Error().Err(err).Msg("conn hijack failed")
 	}
 
 	conn.Write([]byte{})
@@ -77,6 +77,8 @@ msgLoop:
 		case <-msgsErr:
 			defer conn.Close()
 			defer resp.Close()
+			defer close(msgs)
+			defer close(msgsErr)
 			break msgLoop
 		}
 	}

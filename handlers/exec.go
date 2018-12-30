@@ -11,7 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// ExecHandler lero lero
+// ExecHandler handle the exec command
 func ExecHandler(ctx iris.Context) {
 
 	util.SetEnvVars(ctx)
@@ -49,7 +49,6 @@ func ExecHandler(ctx iris.Context) {
 			msg, er := resp.Reader.ReadByte()
 			if er != nil {
 				msgsErr <- er
-				resp.Close()
 				return
 			}
 			msgs <- []byte{msg}
@@ -60,7 +59,7 @@ func ExecHandler(ctx iris.Context) {
 
 	conn, _, err := ctx.ResponseWriter().Hijack()
 	if err != nil {
-		fmt.Println("ERRO >>>>>>>>>>>>>> ", err)
+		log.Error().Err(err).Msg("conn hijack failed")
 	}
 
 	conn.Write([]byte{})
@@ -85,7 +84,6 @@ func ExecHandler(ctx iris.Context) {
 				break
 			}
 			if er != nil {
-				fmt.Println(0, er)
 				break
 			}
 			resp.Conn.Write(buf)
@@ -99,7 +97,6 @@ msgLoop:
 			fmt.Fprintf(conn, "%s", msg)
 		case <-msgsErr:
 			defer conn.Close()
-			defer resp.Close()
 			break msgLoop
 		}
 	}

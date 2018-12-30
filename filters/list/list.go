@@ -102,7 +102,7 @@ func validateFilterOrder(models []model.Filter) {
 	for _, filter := range models {
 		if filter.Config().Order == last {
 			log.Fatal().Msg(fmt.Sprintf("Error on filters definitions : property configuration mismatch ORDER : theres 2 filters or more with the same order value -> %d", last))
-			panic("Correct the filters configurations, including the plugins")
+			panic("Fix the filters configurations, including the plugins")
 		}
 		last = filter.Config().Order
 	}

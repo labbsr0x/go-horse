@@ -11,7 +11,7 @@ import (
 	"github.com/kataras/iris"
 )
 
-// LogsHandler lero lero
+// LogsHandler handle logs command
 func LogsHandler(ctx iris.Context) {
 
 	util.SetEnvVars(ctx)
@@ -39,14 +39,15 @@ func LogsHandler(ctx iris.Context) {
 	}
 
 	responseBody, err := dockerCli.ContainerLogs(context, ctx.Params().Get("containerId"), options)
+	defer responseBody.Close()
+
+	writer := ctx.ResponseWriter()
 
 	if err != nil {
-		ctx.ResponseWriter().WriteString(err.Error())
+		writer.WriteString(err.Error())
 		return
 	}
 	var nr int
-
-	writer := ctx.ResponseWriter()
 
 	for {
 		time.Sleep(time.Millisecond * 100)

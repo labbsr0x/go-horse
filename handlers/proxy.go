@@ -104,7 +104,7 @@ func ProxyHandler(ctx iris.Context) {
 
 	responseBody, erro := ioutil.ReadAll(response.Body)
 	if erro != nil {
-		ctx.WriteString("Erro parsear a resposta do token - " + erro.Error())
+		ctx.WriteString("Error reading the response body - " + erro.Error())
 		log.Error().Str("request", ctx.String()).Err(erro).Msg("Error parsing response body in main handler")
 	}
 
@@ -117,7 +117,7 @@ func ProxyHandler(ctx iris.Context) {
 	errr := runResponseFilters(ctx)
 
 	if errr != nil {
-		log.Error().Err(errr).Msg("Erro ao executar filtros do response")
+		log.Error().Err(errr).Msg("Error during the execution of response filters")
 	}
 
 	ctx.ContentType("application/json")
@@ -167,7 +167,7 @@ func runResponseFilters(ctx iris.Context) (err error) {
 			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
 			result, err := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
 			if err != nil {
-				log.Error().Err(err).Msgf("Erro no retorno do filtro : %s", filter.Config().Name)
+				log.Error().Err(err).Msgf("Error applying filter : %s", filter.Config().Name)
 			}
 			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
 			if result.Operation == model.Write {

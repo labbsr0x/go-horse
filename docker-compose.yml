@@ -4,7 +4,7 @@ services:
   
   proxy:
     build: .
-    image: sandman_proxy
+    image: go-horse
     network_mode: bridge
     ports: 
       - 8080:8080
@@ -15,8 +15,8 @@ services:
       - LOG_LEVEL=debug
       - PRETTY_LOG=true
       - PORT=:8080
-      - JS_FILTERS_PATH=/app/sadman-acl-proxy/filters
-      - GO_PLUGINS_PATH=/app/sadman-acl-proxy/plugins
+      - JS_FILTERS_PATH=/app/go-horse/filters
+      - GO_PLUGINS_PATH=/app/go-horse/plugins
     volumes: 
       - /var/run/docker.sock:/var/run/docker.sock
-      - /home/bruno/sadman-acl-proxy:/app/sadman-acl-proxy
+      - /home/bruno/go-horse:/app/go-horse

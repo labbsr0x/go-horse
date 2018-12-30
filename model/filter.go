@@ -10,34 +10,34 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// BodyOperation json body operation type
+// BodyOperation : Read or Write > If the body content was updated by the filter and needs to be overwritten in the response,  Write property should be passed
 type BodyOperation int
 
 const (
-	// Read read
+	// Read : no changes, keep the original
 	Read BodyOperation = 0
-	// Write write
+	// Write : changes made, override the old
 	Write BodyOperation = 1
 )
 
-// Invoke invoke
+// Invoke : a property to tell if the filter is gonna be executed before (Request) or after (Response) the client request be send to the docker daemon
 type Invoke int
 
 const (
-	// Response Response
+	// Response filter invoke on the response from the docker daemon
 	Response Invoke = 0
-	// Request Request
+	// Request filter invoke on the request from the docker client
 	Request Invoke = 1
 )
 
-// Filter lero-lero
+// Filter common filter interface between go and javascript filters
 type Filter interface {
 	Config() FilterConfig
 	Exec(ctx iris.Context, requestBody string) (FilterReturn, error)
 	MatchURL(ctx iris.Context) bool
 }
 
-// FilterConfig lero-lero
+// FilterConfig common filter configuration
 type FilterConfig struct {
 	Name        string
 	Order       int
@@ -47,7 +47,7 @@ type FilterConfig struct {
 	regex       *regexp.Regexp
 }
 
-// FilterReturn lero-lero
+// FilterReturn common filter return
 type FilterReturn struct {
 	Next      bool
 	Body      string
@@ -64,10 +64,7 @@ type baseFilter struct {
 func parseOperation(operation interface{}) BodyOperation {
 	intOperation, ok := operation.(int)
 	if ok {
-		if intOperation == 1 {
-			return Write
-		}
-		return Read
+		return BodyOperation(intOperation)
 	}
 	if operation == filters.Write {
 		return Write
@@ -78,10 +75,7 @@ func parseOperation(operation interface{}) BodyOperation {
 func parseInvoke(invoke interface{}) Invoke {
 	intInvoke, ok := invoke.(int)
 	if ok {
-		if intInvoke == 1 {
-			return Request
-		}
-		return Response
+		return Invoke(intInvoke)
 	}
 	if invoke == filters.Request {
 		return Request
@@ -89,19 +83,19 @@ func parseInvoke(invoke interface{}) Invoke {
 	return Response
 }
 
-// FilterGO lero-lero
+// FilterGO Go proxy filter
 type FilterGO struct {
 	baseFilter
 	innerType plugins.Filter
 }
 
-// FilterJS lero-lero
+// FilterJS JS proxy filter
 type FilterJS struct {
 	baseFilter
 	innerType filters.JsFilterModel
 }
 
-// NewFilterJS lero-lero
+// NewFilterJS JS filter factory
 func NewFilterJS(innerType filters.JsFilterModel) FilterJS {
 	filterJs := FilterJS{}
 	filterJs.innerType = innerType
@@ -109,17 +103,17 @@ func NewFilterJS(innerType filters.JsFilterModel) FilterJS {
 	return filterJs
 }
 
-// MatchURL lero-lero
+// MatchURL js
 func (filterJs FilterJS) MatchURL(ctx iris.Context) bool {
 	return MatchURL(ctx, filterJs.baseFilter)
 }
 
-// Config lero-lero
+// Config js
 func (filterJs FilterJS) Config() FilterConfig {
 	return filterJs.FilterConfig
 }
 
-// Exec lero-lero
+// Exec js
 func (filterJs FilterJS) Exec(ctx iris.Context, requestBody string) (FilterReturn, error) {
 	jsReturn, error := filterJs.innerType.Exec(ctx, requestBody)
 	if error != nil {
@@ -128,23 +122,23 @@ func (filterJs FilterJS) Exec(ctx iris.Context, requestBody string) (FilterRetur
 	return FilterReturn{jsReturn.Next, jsReturn.Body, jsReturn.Status, parseOperation(jsReturn.Operation), jsReturn.Err}, nil
 }
 
-// MatchURL lero-lero
+// MatchURL go
 func (filterGo FilterGO) MatchURL(ctx iris.Context) bool {
 	return MatchURL(ctx, filterGo.baseFilter)
 }
 
-// Config lero-lero
+// Config go
 func (filterGo FilterGO) Config() FilterConfig {
 	return filterGo.FilterConfig
 }
 
-// Exec lero-lero
+// Exec go
 func (filterGo FilterGO) Exec(ctx iris.Context, requestBody string) (FilterReturn, error) {
 	Next, Body, Status, Operation, Err := filterGo.innerType.Exec(ctx, requestBody)
 	return FilterReturn{Next, Body, Status, parseOperation(Operation), Err}, Err
 }
 
-// NewFilterGO lero-lero
+// NewFilterGO filter factory
 func NewFilterGO(innerType plugins.Filter) FilterGO {
 	filterGo := FilterGO{}
 	filterGo.innerType = innerType
@@ -153,7 +147,7 @@ func NewFilterGO(innerType plugins.Filter) FilterGO {
 	return filterGo
 }
 
-// MatchURL lero lero
+// MatchURL common
 func MatchURL(ctx iris.Context, base baseFilter) bool {
 	if base.regex == nil {
 		regex, error := regexp.Compile(base.PathPattern)

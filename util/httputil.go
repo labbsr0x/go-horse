@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// GetRequestParameter GetRequestParameter
 func GetRequestParameter(formValues map[string][]string, param string) (value string) {
 	values, ok := formValues[param]
 	if ok {

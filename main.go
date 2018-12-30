@@ -20,6 +20,7 @@ func main() {
 	app.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
 	app.Post("/{version:string}/exec/{execInstanceId:string}/start", handlers.ExecHandler)
 	app.Any("*", handlers.ProxyHandler)
+
 	app.Run(iris.Addr(config.Port))
 }
 

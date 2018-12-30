@@ -23,27 +23,27 @@ import (
 
 var client = &http.Client{}
 
-// BodyOperation json body operation type
+// BodyOperation : Read or Write > If the body content was updated by the filter and needs to be overwritten in the response,  Write property should be passed
 type BodyOperation int
 
 const (
-	// Read read
+	// Read : no changes, keep the original
 	Read BodyOperation = 0
-	// Write write
+	// Write : changes made, override the old
 	Write BodyOperation = 1
 )
 
-// Invoke invoke
+// Invoke : a property to tell if the filter is gonna be executed before (Request) or after (Response) the client request be send to the docker daemon
 type Invoke int
 
 const (
-	// Response Response
+	// Response filter invoke on the response from the docker daemon
 	Response Invoke = 0
-	// Request Request
+	// Request filter invoke on the request from the docker client
 	Request Invoke = 1
 )
 
-// JsFilterModel lero-lero
+// JsFilterModel javascript filter model
 type JsFilterModel struct {
 	Name        string
 	Order       int
@@ -53,7 +53,7 @@ type JsFilterModel struct {
 	regex       *regexp.Regexp
 }
 
-// JsFilterFunctionReturn lero-lero
+// JsFilterFunctionReturn the return from the javascript filter execution
 type JsFilterFunctionReturn struct {
 	Next      bool
 	Body      string
@@ -62,7 +62,7 @@ type JsFilterFunctionReturn struct {
 	Err       error
 }
 
-// MatchURL lero lero
+// MatchURL tells if the filter should be executed for the URL in the context
 func (jsFilter JsFilterModel) MatchURL(ctx iris.Context) bool {
 	if jsFilter.regex == nil {
 		regex, error := regexp.Compile(jsFilter.PathPattern)
@@ -75,20 +75,10 @@ func (jsFilter JsFilterModel) MatchURL(ctx iris.Context) bool {
 	return jsFilter.regex.MatchString(ctx.RequestPath(false))
 }
 
-// ExecResponse lero lero
-func (jsFilter JsFilterModel) ExecResponse(ctx iris.Context, response *http.Response) (fnReturn JsFilterFunctionReturn, er error) {
-	body, erro := ioutil.ReadAll(response.Body)
-	if erro != nil {
-		log.Error().Str("plugin_name", jsFilter.Name).Err(erro).Msg("Error parsing body")
-	}
-	return jsFilter.Exec(ctx, string(body))
-}
-
-// Exec lero lero
+// Exec run the filter
 func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunctionReturn, error) {
 
 	js := otto.New()
-	js.Set("url", ctx.Request().URL.String())
 
 	if body == "" {
 		body = "{}"
@@ -101,21 +91,26 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 		funcRet, _ = otto.ToValue(emptyBody)
 	}
 
-	js.Set("body", funcRet.Object())
-
 	operation, error := js.Object("({READ : 0, WRITE : 1})")
 	if error != nil {
 		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error creating operation object - js filter exec")
 	}
-	js.Set("operation", operation)
-	js.Set("getVar", func(call otto.FunctionCall) otto.Value { return requestScopeGetToJSContext(ctx, call) })
-	js.Set("setVar", func(call otto.FunctionCall) otto.Value { return requestScopeSetToJSContext(ctx, call) })
-	js.Set("listVar", func(call otto.FunctionCall) otto.Value { return requestScopeListToJSContext(ctx, call) })
-	js.Set("method", strings.ToUpper(ctx.Method()))
-	js.Set("headers", ctx.Request().Header)
-	js.Set("request", httpRequestTOJSContext)
 
-	pluginsJsObj, error := js.Object("({})")
+	ctxJsObj, _ := js.Object("({})")
+
+	ctxJsObj.Set("url", ctx.Request().URL.String())
+	ctxJsObj.Set("body", funcRet.Object())
+	ctxJsObj.Set("operation", operation)
+	ctxJsObj.Set("method", strings.ToUpper(ctx.Method()))
+	ctxJsObj.Set("getVar", func(call otto.FunctionCall) otto.Value { return requestScopeGetToJSContext(ctx, call) })
+	ctxJsObj.Set("setVar", func(call otto.FunctionCall) otto.Value { return requestScopeSetToJSContext(ctx, call) })
+	ctxJsObj.Set("listVar", func(call otto.FunctionCall) otto.Value { return requestScopeListToJSContext(ctx, call) })
+	ctxJsObj.Set("headers", ctx.Request().Header)
+	ctxJsObj.Set("request", httpRequestTOJSContext)
+
+	js.Set("ctx", ctxJsObj)
+
+	pluginsJsObj, _ := js.Object("({})")
 
 	for _, jsPlugin := range plugins.JSPluginList {
 		error := pluginsJsObj.Set(jsPlugin.Name(), func(call otto.FunctionCall) otto.Value { return jsPlugin.Set(ctx, call) })
@@ -126,18 +121,14 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 
 	js.Set("plugins", pluginsJsObj)
 
-	returnValue, error := js.Run("(" + jsFilter.Function + ")(url, body, operation, method, getVar, setVar, listVar, headers, request, plugins)")
+	returnValue, error := js.Run("(" + jsFilter.Function + ")(ctx, plugins)")
 
 	if error != nil {
 		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error executing filter - js filter exec")
+		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Error from docker daemon proxy go-horse : \"" + error.Error() + "}"}, error
 	}
 
 	result := returnValue.Object()
-
-	if error != nil {
-		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing return value from filter - js filter exec")
-		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Erro filtro proxy go-horse : \"" + error.Error() + "}"}, error
-	}
 
 	jsFunctionReturn := JsFilterFunctionReturn{}
 
@@ -196,7 +187,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 	} else {
 		return errorReturnFilter(error)
 	}
-
+	// wierd
 	return jsFunctionReturn, jsFunctionReturn.Err
 }
 
@@ -205,7 +196,7 @@ func errorReturnFilter(error error) (JsFilterFunctionReturn, error) {
 	return JsFilterFunctionReturn{Body: "{\"message\" : \"Proxy error : \"" + error.Error() + "}"}, error
 }
 
-func requestScopeGetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value { //
+func requestScopeGetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	key, error := call.Argument(0).ToString()
 	if error != nil {
 		log.Error().Err(error).Msg("Error parsing requestScopeGetToJSContext key field - js filter exec")
@@ -218,7 +209,7 @@ func requestScopeGetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.V
 	return result
 }
 
-func requestScopeSetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value { //
+func requestScopeSetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	key, error := call.Argument(0).ToString()
 	if error != nil {
 		log.Error().Err(error).Msg("Error parsing requestScopeSetToJSContext key field - js filter exec")
@@ -231,7 +222,7 @@ func requestScopeSetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.V
 	return otto.NullValue()
 }
 
-func requestScopeListToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value { //
+func requestScopeListToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	mapa := util.RequestScopeList(ctx)
 	result, error := call.Otto.ToValue(mapa)
 	if error != nil {
@@ -307,10 +298,7 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 		log.Error().Msg("Error parsing request body - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
 	}
 
-	response, error := call.Otto.Object("({})")
-	if error != nil {
-		log.Error().Err(error).Msg("Error creating response js object - httpRequestTOJSContext")
-	}
+	response, _ := call.Otto.Object("({})")
 
 	bodyObjectJs, error := call.Otto.ToValue(string(bodyBytes))
 	if error != nil {
@@ -331,7 +319,7 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 	return value
 }
 
-// Load lero-lero
+// Load load the filter from files
 func Load() []JsFilterModel {
 	return parseFilterObject(readFromFile())
 }
@@ -365,7 +353,6 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 
 	for fileName, jsFunc := range jsFilterFunctions {
 		nameProperties := fileNamePattern.FindStringSubmatch(fileName)
-		fmt.Printf("FindStringSubmatch %#v\n", fileNamePattern.FindStringSubmatch(fileName))
 		if nameProperties == nil || len(nameProperties) < 4 {
 			log.Error().Str("file", fileName).Msg("Error file name")
 			continue
@@ -394,7 +381,7 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 
 		oderInt, orderParserError := strconv.Atoi(order)
 		if orderParserError != nil {
-			log.Error().Err(error).Str("file", fileName).Msg("Error on oder int conversion - parseFilterObject")
+			log.Error().Err(error).Str("file", fileName).Msg("Error on order int conversion - parseFilterObject")
 			continue
 		}
 		filterDefinition.Order = oderInt

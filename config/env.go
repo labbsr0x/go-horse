@@ -7,26 +7,26 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// DockerSockURL lero-lero
+// DockerSockURL DockerSockURL
 var DockerSockURL = defaultValue("DOCKER_SOCK", "unix:///var/run/docker.sock")
 
-// DockerSockURL lero-lero
+// TargetHostname TargetHostname
 var TargetHostname = defaultValue("TARGET_HOSTNAME", "http://localhost")
 
-// LogLevel lero lero
+// LogLevel LogLevel
 var LogLevel = fixLogLevel(defaultValue("LOG_LEVEL", "debug"))
 
-// PrettyLog ler-lero
+// PrettyLog PrettyLog
 var PrettyLog = defaultValueBol("PRETTY_LOG", true)
 
-// Port lero lero
+// Port Port
 var Port = fixPortValue(defaultValue("PORT", ":8080"))
 
-// JsFiltersPath lero lero
-var JsFiltersPath = defaultValue("JS_FILTERS_PATH", os.Getenv("HOME")+"/sadman-acl-proxy/filters")
+// JsFiltersPath JsFiltersPath
+var JsFiltersPath = defaultValue("JS_FILTERS_PATH", "/app/go-horse/filters")
 
-// GoPluginsPath lero-lero
-var GoPluginsPath = defaultValue("GO_PLUGINS_PATH", os.Getenv("HOME")+"/sadman-acl-proxy/plugins")
+// GoPluginsPath GoPluginsPath
+var GoPluginsPath = defaultValue("GO_PLUGINS_PATH", "/app/go-horse/plugins")
 
 func fixLogLevel(logLevel string) zerolog.Level {
 	level, error := zerolog.ParseLevel(logLevel)
