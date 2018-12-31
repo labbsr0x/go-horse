@@ -32,7 +32,7 @@ services:
 Set the environment variable `DOCKER_HOST` to `tcp://localhost:8080` or test a single command adding -H attribute : `docker -H=localhost:8080 ps -a` and watch the go-horse container logs
 
 ### Filtering requests using JavaScript
-According to the environment variable `JS_FILTERS_PATH` you have to place you JavaScript filters there to get them load in the go-horse filter chain. These file's name have to obey a pattern :
+According to the environment variable `JS_FILTERS_PATH` you have to place you JavaScript filters there to get them loaded in the go-horse filter chain. These file's name have to obey a pattern :
 
 #### 000.request.test.js => {order}.{invoke}.{name}.{extension}  
 | Property  | Values allowed | Description|
