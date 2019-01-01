@@ -140,7 +140,7 @@ func runRequestFilters(ctx iris.Context) (result model.FilterReturn, err error) 
 				ctx.Values().Set("requestBody", result.Body)
 			}
 			if !result.Next {
-				log.Debug().Str("Filter chain canceled by filter - ", filter.Config().Name).Msg("lero-lero")
+				log.Info().Str("Filter chain canceled by filter - ", filter.Config().Name).Msg("lero-lero")
 				break
 			}
 		}
