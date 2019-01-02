@@ -7,11 +7,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// DockerAPIVersion DockerAPIVersion
+var DockerAPIVersion = defaultValue("DOCKER_API_VERSION", "1.39")
+
 // DockerSockURL DockerSockURL
 var DockerSockURL = defaultValue("DOCKER_SOCK", "unix:///var/run/docker.sock")
 
 // TargetHostname TargetHostname
-var TargetHostname = defaultValue("TARGET_HOSTNAME", "http://localhost")
+var TargetHostname = defaultValue("TARGET_HOSTNAME", "http://go-horse")
 
 // LogLevel LogLevel
 var LogLevel = fixLogLevel(defaultValue("LOG_LEVEL", "debug"))

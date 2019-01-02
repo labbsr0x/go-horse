@@ -24,8 +24,8 @@ var dockerCli *client.Client
 var waitChannel = make(chan int)
 
 func init() {
-	os.Setenv("DOCKER_API_VERSION", "1.39")
-	os.Setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
+	os.Setenv("DOCKER_API_VERSION", config.DockerAPIVersion)
+	os.Setenv("DOCKER_HOST", config.DockerSockURL)
 	var err error
 	dockerCli, err = client.NewEnvClient()
 	if err != nil {
@@ -36,7 +36,7 @@ func init() {
 // ProxyHandler lero-lero
 func ProxyHandler(ctx iris.Context) {
 
-	log.Debug().Str("request", ctx.String()).Msg("Receiving request")
+	log.Info().Str("request", ctx.String()).Msg("Receiving request")
 
 	util.SetEnvVars(ctx)
 
@@ -128,19 +128,22 @@ func ProxyHandler(ctx iris.Context) {
 
 func runRequestFilters(ctx iris.Context) (result model.FilterReturn, err error) {
 	requestPath := ctx.Path()
-	log.Debug().Msg("Request the mainHandler: " + requestPath)
+	log.Debug().Msg("Running request filters for url : " + requestPath)
 
 	for _, filter := range list.RequestFilters() {
 		if filter.MatchURL(ctx) {
-			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
+			log.Debug().Str("Filter matched", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config())).Msg("executing filter ...")
 			result, err = filter.Exec(ctx, ctx.Values().GetString("requestBody"))
-			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
+			if err != nil {
+				log.Error().Err(err).Msgf("Error applying filter : %s", filter.Config().Name)
+			}
+			log.Debug().Str("Filter output", fmt.Sprintf("%#v", result)).Str("filter_config", fmt.Sprintf("%#v", result)).Msg("filter execution end")
 			if result.Operation == model.Write {
-				log.Debug().Str("Body rewrite for filter - ", filter.Config().Name)
+				log.Debug().Msgf("Body rewrite for filter : ", filter.Config().Name)
 				ctx.Values().Set("requestBody", result.Body)
 			}
 			if !result.Next {
-				log.Info().Str("Filter chain canceled by filter - ", filter.Config().Name).Msg("lero-lero")
+				log.Info().Msgf("Filter chain canceled by filter - ", filter.Config().Name)
 				break
 			}
 		}
@@ -164,18 +167,18 @@ func runResponseFilters(ctx iris.Context) (err error) {
 
 	for _, filter := range list.ResponseFilters() {
 		if filter.MatchURL(ctx) {
-			log.Debug().Str("Filter matched : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config()))
+			log.Debug().Str("Filter matched", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config())).Msg("executing filter ...")
 			result, err := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
 			if err != nil {
 				log.Error().Err(err).Msgf("Error applying filter : %s", filter.Config().Name)
 			}
-			log.Debug().Str("Filter output : ", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", result))
+			log.Debug().Str("Filter output", fmt.Sprintf("%#v", result)).Str("filter_config", fmt.Sprintf("%#v", result)).Msg("filter execution end")
 			if result.Operation == model.Write {
-				log.Debug().Str("Body rewrite for filter - ", filter.Config().Name)
+				log.Debug().Msgf("Body rewrite for filter : ", filter.Config().Name)
 				ctx.Values().Set("responseBody", result.Body)
 			}
 			if !result.Next {
-				log.Debug().Str("Filter chain canceled by filter - ", filter.Config().Name)
+				log.Info().Msgf("Filter chain canceled by filter - ", filter.Config().Name)
 				break
 			}
 		}

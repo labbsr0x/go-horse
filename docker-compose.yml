@@ -9,9 +9,8 @@ services:
     ports: 
       - 8080:8080
     environment: 
-      - DOCKER_HOST=/var/run/docker.sock
+      - DOCKER_API_VERSION=1.39
       - DOCKER_SOCK=unix:///var/run/docker.sock
-      - TARGET_HOSTNAME=http://localhost
       - LOG_LEVEL=debug
       - PRETTY_LOG=true
       - PORT=:8080
