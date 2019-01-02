@@ -1,22 +1,28 @@
 ## **GO-HORSE** : DOCKER DAEMON PROXY/FILTER
 
+<br/>
+
 >The software in the middle the communication between docker client and daemon, allowing you to intercept all commands and, by example, do access control or add tags in a container during its creation, change its name, alter network definition, redifine volumes, rewrite the whole body if you want, and so on. Take the control. Do what you need.
+
 
 #### Table of contents
 
 1. [ How it works ](#how_it_works)
+  1.1. [ How it works ](#filter_func_args)
 2. [ Running ](#running)
 3. [ Filtering requests using JavaScript ](#js_filter)
 4. [ Filtering requests using Go ](#go_filter)
 
 <br/>
-
 <a name="how_it_works"/>
+
 ### How it works
 
 Docker (http) commands sent from the client to the deamon are intercepted by creating filters in go-horse. This filters can be implemented either in JavaScript or Golang. You should inform a *path pattern* to match a command url (check [docker api docs](https://docs.docker.com/engine/api/v1.39/) or see go-horse logs to map what urls are requested by docker client commands), a *invoke* property telling if you want the filter to run at the Request time, before the request hit the daemon, or on Response time, after the daemon has processed the request. Once your filter gets a request, you have all the means to implement the rules your business needs. Rewrite a url to the docker daemon? Check the user identity in another system? Send a http request and break the filter chain based on the response? Add metadata to a container? Change container properties? Compute specific metrics?  Blacklist some commands? Ok, can do. This and many more.
 
+<br/>
 <a name="running"/>
+
 ### Running
 
 ```docker-compose
@@ -43,6 +49,7 @@ Set the environment variable `DOCKER_HOST` to `tcp://localhost:8080` or test a s
 
 <br/>
 <a name="js_filter"/>
+
 ### Filtering requests using JavaScript
 According to the environment variable `JS_FILTERS_PATH`, you have to place your JavaScript filters there to get them loaded in the go-horse filter chain. These file's name have to obey the following pattern :
 
@@ -92,6 +99,9 @@ Now look at the `function` function - Yes, naming things aren't one of our stren
 
 That function called as 'function' receives 2 arguments. The first one, `ctx` has data and functions provided by go-horse, it is related to the 'client and daemon communication' and filter chain. The second one, the `plugins` argument, will contain data and functions provided by you. It's a way to extend the filter's context, if you need it. Letting you inject all things we forgot to include. We explain that better. Later. Now, more about the `ctx` variable and their properties :
 
+<br/>
+<a name="filter_func_args"/>
+
 ##### Filter function arguments
 
 | ctx.`Property`  | Type       | Description| Parameters | Return | 
@@ -130,6 +140,7 @@ All env vars are avaliable in javascript filters scope. You can list them by cal
 
 <br/>
 <a name="go_filter"/>
+
 ### Filtering requests using Go
 
 Besides Javascript, you can also create your filters using GoLang. If you doesn't like JS, if you don't want to be constraint by JS context limitation, if you care about performance or ... ?? then use Go Filters. 
