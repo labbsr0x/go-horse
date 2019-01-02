@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
@@ -24,10 +23,8 @@ var dockerCli *client.Client
 var waitChannel = make(chan int)
 
 func init() {
-	os.Setenv("DOCKER_API_VERSION", config.DockerAPIVersion)
-	os.Setenv("DOCKER_HOST", config.DockerSockURL)
 	var err error
-	dockerCli, err = client.NewEnvClient()
+	dockerCli, err = client.NewClientWithOpts(client.WithVersion(config.DockerAPIVersion), client.WithHost(config.DockerSockURL))
 	if err != nil {
 		panic(err)
 	}
@@ -52,6 +49,7 @@ func ProxyHandler(ctx iris.Context) {
 	_, erris := runRequestFilters(ctx)
 
 	if erris != nil {
+		log.Error().Err(erris).Msg("Error during the execution of REQUEST filters")
 		ctx.StopExecution()
 		return
 	}
@@ -112,23 +110,38 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Header(key, value[0])
 	}
 
-	ctx.Values().Set("responseBody", string(responseBody))
-
-	errr := runResponseFilters(ctx)
-
-	if errr != nil {
-		log.Error().Err(errr).Msg("Error during the execution of response filters")
+	if response.Header.Get("Content-Type") == "text/plain; charset=utf-8" {
+		ctx.StatusCode(response.StatusCode)
+		ctx.Write(responseBody)
+		return
 	}
 
+	ctx.Values().Set("responseBody", string(responseBody))
+
+	result, errr := runResponseFilters(ctx)
+
+	if errr != nil {
+		log.Error().Err(errr).Msg("Error during the execution of RESPONSE filters")
+		ctx.StopExecution()
+		return
+	}
+
+	ctx.StatusCode(fixZeroStatus(result, response))
 	ctx.ContentType("application/json")
-	ctx.StatusCode(response.StatusCode)
 	ctx.WriteString(ctx.Values().GetString("responseBody"))
 
 }
 
+func fixZeroStatus(result model.FilterReturn, response *http.Response) int {
+	if result.Status == 0 {
+		return response.StatusCode
+	}
+	return result.Status
+}
+
 func runRequestFilters(ctx iris.Context) (result model.FilterReturn, err error) {
 	requestPath := ctx.Path()
-	log.Debug().Msg("Running request filters for url : " + requestPath)
+	log.Debug().Msgf("Running REQUEST filters for url : %s", requestPath)
 
 	for _, filter := range list.RequestFilters() {
 		if filter.MatchURL(ctx) {
@@ -139,11 +152,11 @@ func runRequestFilters(ctx iris.Context) (result model.FilterReturn, err error) 
 			}
 			log.Debug().Str("Filter output", fmt.Sprintf("%#v", result)).Str("filter_config", fmt.Sprintf("%#v", result)).Msg("filter execution end")
 			if result.Operation == model.Write {
-				log.Debug().Msgf("Body rewrite for filter : ", filter.Config().Name)
+				log.Debug().Msgf("Body rewrite for filter : %s", filter.Config().Name)
 				ctx.Values().Set("requestBody", result.Body)
 			}
 			if !result.Next {
-				log.Info().Msgf("Filter chain canceled by filter - ", filter.Config().Name)
+				log.Info().Msgf("Filter chain canceled by filter - %s", filter.Config().Name)
 				break
 			}
 		}
@@ -161,27 +174,38 @@ func runRequestFilters(ctx iris.Context) (result model.FilterReturn, err error) 
 	return
 }
 
-func runResponseFilters(ctx iris.Context) (err error) {
+func runResponseFilters(ctx iris.Context) (result model.FilterReturn, err error) {
+
 	requestPath := ctx.Path()
-	log.Debug().Msg("Response the mainHandler:" + requestPath)
+	log.Debug().Msgf("Running RESPONSE filters for url : %s", requestPath)
 
 	for _, filter := range list.ResponseFilters() {
 		if filter.MatchURL(ctx) {
 			log.Debug().Str("Filter matched", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config())).Msg("executing filter ...")
-			result, err := filter.Exec(ctx, ctx.Values().GetString("responseBody"))
+			result, err = filter.Exec(ctx, ctx.Values().GetString("responseBody"))
 			if err != nil {
 				log.Error().Err(err).Msgf("Error applying filter : %s", filter.Config().Name)
 			}
 			log.Debug().Str("Filter output", fmt.Sprintf("%#v", result)).Str("filter_config", fmt.Sprintf("%#v", result)).Msg("filter execution end")
 			if result.Operation == model.Write {
-				log.Debug().Msgf("Body rewrite for filter : ", filter.Config().Name)
+				log.Debug().Msgf("Body rewrite for filter : %s", filter.Config().Name)
 				ctx.Values().Set("responseBody", result.Body)
+				ctx.StatusCode(result.Status)
 			}
 			if !result.Next {
-				log.Info().Msgf("Filter chain canceled by filter - ", filter.Config().Name)
+				log.Info().Msgf("Filter chain canceled by filter - %s", filter.Config().Name)
 				break
 			}
 		}
+	}
+
+	if err != nil {
+		if result.Status == 0 {
+			result.Status = http.StatusInternalServerError
+		}
+		ctx.StatusCode(result.Status)
+		ctx.ContentType("application/json")
+		ctx.WriteString(err.Error())
 	}
 
 	return
