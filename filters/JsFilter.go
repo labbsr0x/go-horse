@@ -360,6 +360,7 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 
 		order := nameProperties[1]
 		invokeTime := nameProperties[2]
+		name := nameProperties[3]
 
 		js := otto.New()
 
@@ -385,16 +386,7 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 			continue
 		}
 		filterDefinition.Order = oderInt
-
-		if value, err := filter.Get("name"); err == nil {
-			if value, err := value.ToString(); err == nil {
-				filterDefinition.Name = value
-			} else {
-				log.Error().Err(err).Str("file", fileName).Str("field", "name").Msg("Error on JS filter definition - parseFilterObject")
-			}
-		} else {
-			log.Error().Err(err).Str("file", fileName).Str("field", "name").Msg("Error on JS filter definition - parseFilterObject")
-		}
+		filterDefinition.Name = name
 
 		if value, err := filter.Get("pathPattern"); err == nil {
 			if value, err := value.ToString(); err == nil {
