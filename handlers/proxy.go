@@ -45,6 +45,8 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Values().Set("requestBody", string(requestBody))
 	}
 
+	ctx.Values().Set("targetEndpoint", ctx.Request().URL.RequestURI())
+
 	// mussum was here
 	_, erris := runRequestFilters(ctx)
 
@@ -55,9 +57,6 @@ func ProxyHandler(ctx iris.Context) {
 	}
 
 	targetURL := ctx.Values().GetString("targetEndpoint")
-	if targetURL == "" {
-		targetURL = ctx.Request().URL.RequestURI()
-	}
 
 	request, newRequestError := http.NewRequest(ctx.Request().Method, config.TargetHostname+targetURL, strings.NewReader(ctx.Values().GetString("requestBody")))
 

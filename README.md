@@ -13,18 +13,22 @@
   &emsp;3.2.1. [Tricky return combinations](#js_tricky)<br/>
   3.3. [ Rewriting URLs sended to the daemon ](#js_rewrite)<br/>
   3.4. [ Environment variables in JS filters ](#js_env_vars)<br/>
-4. [ Filtering requests using Go ](#go_filter)
-  4.1. [ Go filter interface ](#go_interface)
-  4.2. [ Go filter interface ](#go_sample)
-6. [ Extending Javascript filter context with Go Plugins ](#go_plugin)
-7. [ JS versus GO - information to help your choice ](#benchmark)
+4. [ Filtering requests using Go ](#go_filter)<br/>
+  4.1. [ Go filter interface ](#go_interface)<br/>
+  4.2. [ Sample Go filter ](#go_sample)<br/>
+  4.3. [ Compiling and running a golang filer ](#go_compile)<br/>
+  4.4. [ Another go filter sample ](#go_sample_2)
+5. [ Extending Javascript filter context with Go Plugins ](#go_plugin)
+6. [ JS versus GO - information to help your choice ](#benchmark)
 
+<br/>
 <a name="how_it_works"/>
 
 ### 1. How it works
 
 Docker (http) commands sent from the client to the deamon are intercepted by creating filters in go-horse. This filters can be implemented either in JavaScript or Golang. You should inform a *path pattern* to match a command url (check [docker api docs](https://docs.docker.com/engine/api/v1.39/) or see go-horse logs to map what urls are requested by docker client commands), a *invoke* property telling if you want the filter to run at the Request time, before the request hit the daemon, or on Response time, after the daemon has processed the request. Once your filter gets a request, you have all the means to implement the rules your business needs. Rewrite a url to the docker daemon? Check the user identity in another system? Send a http request and break the filter chain based on the response? Add metadata to a container? Change container properties? Compute specific metrics?  Blacklist some commands? Ok, can do. This and many more.
 
+<br/>
 <a name="running"/>
 
 ### 2. Running
@@ -51,6 +55,7 @@ services:
 ```
 Set the environment variable `DOCKER_HOST` to `tcp://localhost:8080` or test a single command adding -H attribute to a docker command : `docker -H=localhost:8080 ps -a` and watch the go-horse container logs
 
+<br/>
 <a name="js_filter"/>
 
 ### 3. Filtering requests using JavaScript
@@ -151,7 +156,7 @@ go-horse will assume the following default values : operation = READ(0). Filter 
 
 **`return { next: true, body : [{ container : ... }], status : 200, operation : ctx.operation.READ }`**
 
-go-horse will ignore the body you returned because of the value `ctx.operation.READ` in the *operation*. Next filter will receive the same body you has received.
+go-horse will ignore the body you returned because of the value `ctx.operation.READ` is set in response's *operation* field. Next filter will receive the same body you has received.
 
 <a name="js_rewrite"/>
 
@@ -165,6 +170,16 @@ This was useful when we needed to pass a token in the DOCKER_HOST environment va
 ##### 3.4. Environment variables in JS filters
 
 All env vars are avaliable in javascript filters scope. You can list them by calling `ctx.listVars` method. They are have an 'ENV_' prefix.
+
+##### 3.5. Passing a token in DOCKER_HOST url
+
+**WARNING** this may change in a near future. We are not comfortable with this solution as is.
+
+The routes are duplicated, one version with a `/token/{token}` prefixed and another version without the token prefix.
+
+In our case, this was used in conjunction with a CLI that logs the user in and changes the DOCKER_HOST env var in the user machine to our go-horse address with the token added in its path. The first filter - with order equals 0, extract the token, validates the user and rewrite the url calling `ctx.setVar('targetEndpoint', '<tokenless_url>')`.
+
+Another possible solution, and more elegant - i think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identy manager? maybe
 
 <br/>
 <a name="go_filter"/>
@@ -191,7 +206,10 @@ The `Exec` method, runs when a request hits go-horse and his url match the `Conf
 
 <a name="go_sample"/>
 
+
 ##### 4.2. Sample GO filter
+
+Create a go file named *sample_filter.go* .
 
 ``` go
 package main
@@ -233,7 +251,15 @@ var Plugin PluginModel
 
 ```
 
-You should see something like this in the logs : 
+<a name="go_compile"/>
+
+##### 4.3. Compiling and running a golang filer
+
+Save the file above and run the following command in terminal to compile it :
+
+`go build -buildmode=plugin -a -installsuffix cgo -o sample-filter.so sample_filter.go`
+
+Copy the `sample-filter.so` to `GO_PLUGINS_PATH` directory. Restart go-horse, run `docker ps -a` command. You should see something like this in the logs : 
 
 ``` terminal
 5:06PM INF Receiving request request="[1] ::1 ▶ GET:/_ping"
@@ -255,12 +281,20 @@ You should see something like this in the logs :
 5:06PM DBG Body rewrite for filter : GO_FILTER
 ```
 
-And docker client should print something like this in terminal : 
+And docker client should print this : 
 
 ``` terminal
 [bruno@labbs go-horse]$ docker ps -a
 Error response from daemon: newBody: i'm sure almost everyBody needs one
 ```
+
+Cool? Let's create another one, this time we will not return an error to docker client.
+
+<a name="go_sample_2"/>
+
+##### 4.3. Another go filter sample
+
+
 
 
 
