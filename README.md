@@ -179,7 +179,7 @@ The routes are duplicated, one version with a `/token/{token}` prefixed and anot
 
 In our case, this was used in conjunction with a CLI that logs the user in and changes the DOCKER_HOST env var in the user machine to our go-horse address with the token added in its path. The first filter - with order equals 0, extract the token, validates the user and rewrite the url calling `ctx.setVar('targetEndpoint', '<tokenless_url>')`.
 
-Another possible solution, and more elegant - i think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identy manager? maybe
+Another possible solution, and more elegant - i think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identy manager? Maybe.
 
 <br/>
 <a name="go_filter"/>
@@ -202,7 +202,11 @@ Your go filters have to implement those functions.
 
 The `Config` method tells go-horse information about yout filter. Same rules as [ JavaScript filters ](#js_filter).
 
+Operation => 0 = Read<br/>Operation => 1 = Write
+
 The `Exec` method, runs when a request hits go-horse and his url match the `Config.PathPattern` attribute.
+
+Invoke => 0 = Response<br/>Invoke => 1 = Request
 
 <a name="go_sample"/>
 
@@ -294,7 +298,86 @@ Cool? Let's create another one, this time we will not return an error to docker 
 
 ##### 4.3. Another go filter sample
 
+Now we are gonna reverse the container's name and add a label during its creation.
 
+``` go
+package main
+
+import (
+	"strings"
+
+	"github.com/kataras/iris"
+	"github.com/tidwall/sjson"
+)
+
+// PluginModel PluginModel
+type PluginModel struct {
+	Next      bool
+	Body      string
+	Status    int
+	Operation int
+}
+
+// Filter Filter
+type Filter interface {
+	Config() (Name string, Order int, PathPattern string, Invoke int)
+	Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error)
+}
+
+// Exec Exec
+func (filter PluginModel) Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error) {
+	containerName := strings.Split(ctx.Values().GetString("targetEndpoint"), "?name=")
+	containerNameReversed := Reverse(containerName[1])
+	ctx.Values().Set("targetEndpoint", containerName[0]+"?name="+containerNameReversed)
+	value, _ := sjson.Set(requestBody, "Labels", map[string]interface{}{"pass-through": "Go-Horse"})
+	return true, value, 200, 1, nil
+}
+
+// Config Config
+func (filter PluginModel) Config() (Name string, Order int, PathPattern string, Invoke int) {
+	return "GO_FILTER_CONTAINER_CREATE_ADD_LABEL", 0, "/containers/create", 1
+}
+
+// Plugin exported as symbol
+var Plugin PluginModel
+
+// Reverse Reverse
+func Reverse(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
+}
+```
+Compile as you did in the previous filter and place it in the right dir. Restart go-horse again.
+
+Run a `docker run -d --name sample_container redis`
+
+Run a `docker ps`
+
+```
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                    NAMES
+d6ad06221d8d        redis               "docker-entrypoint.s…"   3 seconds ago       Up 2 seconds        6379/tcp                 reniatnoc_elpmas
+```
+
+See the containers name we just created? sample_container => reniatnoc_elpmas
+
+Run a `docker inspect reniatnoc_elpmas | grep -i -C 5 'Labels'`
+
+``` terminal
+            "WorkingDir": "/data",
+            "Entrypoint": [
+                "docker-entrypoint.sh"
+            ],
+            "OnBuild": null,
+            "Labels": {
+>>>>>>>>>>>>  "pass-through": "Go-Horse"
+            }
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+```
 
 
 
@@ -303,10 +386,94 @@ Cool? Let's create another one, this time we will not return an error to docker 
 
 ### 5. Extending Javascript filter context with Go Plugins
 
+If you need something in JS filter context that is not there, you can create a go plugin to inject anything you need in JS filter through the `plugin` argument in the function `function`.
+
+Go plugin :
+
+``` go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/kataras/iris"
+	"github.com/robertkrimen/otto"
+)
+
+func main() {}
+
+// PluginModel ler-lero
+type PluginModel struct{}
+
+// Set lero-lero
+func (js PluginModel) Set(ctx iris.Context, call otto.FunctionCall) otto.Value {
+
+	startingTime := time.Now().UTC()
+
+	ready := make(chan bool)
+	defer close(ready)
+
+	go func() {
+		time.Sleep(2 * time.Second)
+		ready <- true
+	}()
+
+	obj, err := call.Otto.Object("({})")
+
+	select {
+	case msg := <-ready:
+		fmt.Println(">>>> GO JS PLUGIN >>>> ready : ", msg)
+		obj.Set("ready", msg)
+		obj.Set("timeSpentUntilCallThisFunctionSincePluginWasInjected", func() int64 {
+			endingTime := time.Now().UTC()
+			duration := endingTime.Sub(startingTime)
+			return int64(duration)
+		})
+	}
+
+	if err != nil {
+		fmt.Println("erro ao cria o objecto de rectorno da função js do plugin  ", js.Name(), " : ", err)
+	}
+	return obj.Value()
+}
+
+// Name lero-lero
+func (js PluginModel) Name() string {
+	return "sample"
+}
+
+// Plugin exported as symbol named "Greeter"
+var Plugin PluginModel
+```
+And the Javascript filter that use the plugin : 
+
+```javascript
+{
+	"pathPattern": ".*",
+	"function" : function(ctx, plugins){
+		console.log(">>>>> plugins.sample().ready : ", plugins.sample().ready)
+		console.log(">>>>> plugins.sample().timeSpentUntilCallThisFunctionSincePluginWasInjected() : ", 
+			plugins.sample().timeSpentUntilCallThisFunctionSincePluginWasInjected())
+		return {status: 200, next: true, body: ctx.body, operation : ctx.operation.READ};
+	}
+}
+```
+Now compile the plugin and place the .so file and the js filter in the right folder. Run a `docker ps` command and watch the logs : 
+
+``` terminal
+9:24PM DBG executing filter ... Filter matched="[6] ::1 ▶ GET:/v1.39/containers/json?all=1" filter_config="model.FilterConfig{Name:\"plugin_sample\", Order:0, PathPattern:\".*\", Invoke:0, Function:\"function(ctx, plugins){\\n\\t\\tconsole.log(\\\">>>>> plugins.sample().ready : \\\", plugins.sample().ready)\\n\\t\\tconsole.log(\\\">>>>> plugins.sample().timeSpentUntilCallThisFunctionSincePluginWasInjected() : \\\", \\n\\t\\t\\tplugins.sample().timeSpentUntilCallThisFunctionSincePluginWasInjected())\\n\\t\\treturn {status: 200, next: true, body: ctx.body, operation : ctx.operation.READ};\\n\\t}\", regex:(*regexp.Regexp)(nil)}"
+>>>> GO JS PLUGIN >>>> ready :  true
+>>>>> plugins.sample().ready :  true
+>>>> GO JS PLUGIN >>>> ready :  true
+>>>>> plugins.sample().timeSpentUntilCallThisFunctionSincePluginWasInjected() :  2000467481
+
+```
+
 <br/>
 <a name="benchmark"/>
 
 ### 6. JS versus GO - information to help your choice
---- benchmark
+**TODO** BENCHMARK 
 
 
