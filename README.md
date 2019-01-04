@@ -1,12 +1,13 @@
 ## **GO-HORSE** : DOCKER DAEMON PROXY/FILTER
 
->The software in the middle the communication between docker client and daemon, allowing you to intercept all commands and, by example, do access control or add tags in a container during its creation, change its name, alter network definition, redifine volumes, rewrite the whole command's request body if you want, and so on. Take the control. Do what you need.
+>The software in the middle the communication between docker's client and daemon, allowing you to intercept all commands and, by example, do access control or add tags in a container during its creation, change its name, alter network definition, redifine volumes, rewrite the whole command's request body if you want, and so on. Take the control. Do what you need.
 
 
 #### Table of contents
 
 1. [ How it works ](#how_it_works)<br/>
-2. [ Running ](#running)
+2. [ Running ](#running)<br/>
+   2.1. [ Environment variables ](#envvars)<br/>
 3. [ Filtering requests using JavaScript ](#js_filter)<br/>
   3.1. [ Filter function arguments ](#js_filter_func_args)<br/>
   3.2. [ Filter function return ](#js_filter_func_ret)<br/>
@@ -54,6 +55,18 @@ services:
       - /home/bruno/go-horse:/app/go-horse
 ```
 Set the environment variable `DOCKER_HOST` to `tcp://localhost:8080` or test a single command adding -H attribute to a docker command : `docker -H=localhost:8080 ps -a` and watch the go-horse container logs
+
+<a name="envvars"/>
+
+#### 2.1. Environment variables
+
+Besides the self explanatory variables, there are : 
+
+| Env Var         | Type    | Description                                        |
+| --------------- |  -------| ---------------------------------------------------|
+| PRETTY_LOG      | boolean | logs by default are ~~ugly~~ in json format        |
+| JS_FILTER_PATH  | path    | where, in the images file system, are the js filter|
+| GO_PLUGINS_PATH | path    | where, in the images file system, are the go filter and the go plugins|
 
 <br/>
 <a name="js_filter"/>
@@ -186,7 +199,7 @@ Another possible solution, and more elegant - i think, is to insert a token as a
 
 ### 4. Filtering requests using Go
 
-Besides Javascript, you can also create your filters using GoLang. If you don't like JS, if you don't want to be constrained by JS context limitation, if you care about performance or ... ?? then, use Go Filters. It is up to you.
+Besides Javascript, you can also create your filters using GoLang. If you don't like JS, if you don't want to be constrained by JS context limitation, ~~if you care about performance~~ (check out our surprisingly [ benchmark results ](#benchmark)) or ... ?? then, use Go Filters. It is up to you.
 
 <a name="go_interface"/>
 
@@ -288,7 +301,7 @@ Copy the `sample-filter.so` to `GO_PLUGINS_PATH` directory. Restart go-horse, ru
 And docker client should print this : 
 
 ``` terminal
-[bruno@labbs go-horse]$ docker ps -a
+[bruno@labbsr0x go-horse]$ docker ps -a
 Error response from daemon: newBody: i'm sure almost everyBody needs one
 ```
 
@@ -474,6 +487,115 @@ Now compile the plugin and place the .so file and the js filter in the right fol
 <a name="benchmark"/>
 
 ### 6. JS versus GO - information to help your choice
-**TODO** BENCHMARK 
 
+JS code
 
+``` javascript
+{
+	"pathPattern": ".*",
+	"function" : function(ctx, plugins){
+		for(var i = 0, i < 10000; i++){
+			ctx.getVar('targetEndpoint').split("").join("");
+			return {status: 200, next: true, body: ctx.body, operation : ctx.operation.READ};
+		}
+	}
+}
+```
+
+GO code
+``` go
+package main
+
+import (
+	"strings"
+
+	"github.com/kataras/iris"
+)
+
+// PluginModel PluginModel
+type PluginModel struct {
+	Next      bool
+	Body      string
+	Status    int
+	Operation int
+}
+
+// Filter Filter
+type Filter interface {
+	Config() (Name string, Order int, PathPattern string, Invoke int)
+	Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error)
+}
+
+// Exec Exec
+func (filter PluginModel) Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error) {
+	for i := 0; i < 10000; i++ {
+		strings.Join(strings.Split(ctx.Values().GetString("targetEndpoint"), ""), "")
+	}
+	return true, requestBody, 200, 0, nil
+}
+
+// Config Config
+func (filter PluginModel) Config() (Name string, Order int, PathPattern string, Invoke int) {
+	return "GO_FILTER_BENCHMARK", 1, "/containers/json", 0
+}
+
+// Plugin exported as symbol
+var Plugin PluginModel
+```
+
+No filters
+``` terminal
+[bruno@labbsr0x wrk2]$ wrk -t8 -c1000 -d30s -R10000 http://localhost:8080/v1.39/containers/json?all=1
+Running 30s test @ http://localhost:8080/v1.39/containers/json?all=1
+  8 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    13.38s     3.83s   20.92s    58.00%
+    Req/Sec   397.50      2.92   403.00     75.00%
+  93746 requests in 30.00s, 214.33MB read
+Requests/sec:   3124.75
+Transfer/sec:      7.14MB
+```
+
+JS results
+``` terminal
+[bruno@labbsr0x wrk2]$ wrk -t8 -c1000 -d30s -R10000 http://localhost:8080/v1.39/containers/json?all=1
+Running 30s test @ http://localhost:8080/v1.39/containers/json?all=1
+  8 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    16.51s     4.75s   25.33s    57.85%
+    Req/Sec   187.38      1.11   189.00    100.00%
+  44345 requests in 30.00s, 101.46MB read
+Requests/sec:   1477.99
+Transfer/sec:      3.38MB
+```
+
+GO results
+``` terminal
+[bruno@labbsr0x wrk2]$ wrk -t8 -c1000 -d30s -R10000 http://localhost:8080/v1.39/containers/json?all=1
+Running 30s test @ http://localhost:8080/v1.39/containers/json?all=1
+  8 threads and 1000 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    19.00s     5.60s   29.18s    56.96%
+    Req/Sec    22.38      0.70    23.00    100.00%
+  5621 requests in 30.19s, 12.86MB read
+  Socket errors: connect 0, read 0, write 0, timeout 8343
+Requests/sec:    186.16
+Transfer/sec:    436.12KB
+```
+
+That's wierd, at least. I will love to see a PR showing what i'm doing wrong =).
+
+A simple test : the same benchmark code that was running inside the plugin but now running directly in go-horse code. No go plugins involved here.
+
+```terminal
+[bruno@labbsr0x wrk2]$ wrk -t8 -c100 -d5s -R10000 http://localhost:8080/v1.39/containers/json?all=1
+Running 5s test @ http://localhost:8080/v1.39/containers/json?all=1
+  8 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     1.87s     1.07s    3.82s    57.73%
+    Req/Sec       -nan      -nan   0.00      0.00%
+  12484 requests in 5.00s, 28.56MB read
+Requests/sec:   2496.72
+Transfer/sec:      5.71MB
+```
+.
