@@ -488,6 +488,8 @@ Now compile the plugin and place the .so file and the js filter in the right fol
 
 ### 6. JS versus GO - information to help your choice
 
+Very simple benchmark, just to compare the two types of filters.
+
 JS code
 
 ``` javascript
@@ -582,8 +584,7 @@ Running 30s test @ http://localhost:8080/v1.39/containers/json?all=1
 Requests/sec:    186.16
 Transfer/sec:    436.12KB
 ```
-
-That's wierd, at least. I will love to see a PR showing what i'm doing wrong =).
+Wierd. Wasn't expecting this.
 
 A simple test : the same benchmark code that was running inside the plugin but now running directly in go-horse code. No go plugins involved here.
 
@@ -598,4 +599,17 @@ Running 5s test @ http://localhost:8080/v1.39/containers/json?all=1
 Requests/sec:   2496.72
 Transfer/sec:      5.71MB
 ```
-.
+
+Now a JS filter that uses a property and a function injected in JS filter context by a Go plugin : 
+
+``` terminal
+[bruno@note-bruno wrk2]$ wrk -t8 -c100 -d10s -R10000 http://localhost:8080/v1.39/containers/json?all=1
+Running 10s test @ http://localhost:8080/v1.39/containers/json?all=1
+  8 threads and 100 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     4.30s     2.48s    8.66s    57.81%
+    Req/Sec       -nan      -nan   0.00      0.00%
+  13887 requests in 10.00s, 31.77MB read
+Requests/sec:   1388.36
+Transfer/sec:      3.18MB
+```

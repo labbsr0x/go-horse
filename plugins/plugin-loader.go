@@ -1,7 +1,6 @@
 package plugins
 
 import (
-	"fmt"
 	"io/ioutil"
 	"plugin"
 
@@ -71,7 +70,6 @@ func Load() []Filter {
 		}
 
 	}
-	fmt.Printf("%#v\n", FilterPluginList)
 	return FilterPluginList
 
 }
