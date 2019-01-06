@@ -1,4 +1,4 @@
-version: '3.7'
+version: "3.5"
 
 services:
   
@@ -7,7 +7,7 @@ services:
     image: go-horse
     network_mode: bridge
     ports: 
-      - 8080:8080
+      - 7070:8080
     environment: 
       - DOCKER_API_VERSION=1.39
       - DOCKER_SOCK=unix:///var/run/docker.sock
@@ -18,4 +18,4 @@ services:
       - GO_PLUGINS_PATH=/app/go-horse/plugins
     volumes: 
       - /var/run/docker.sock:/var/run/docker.sock
-      - /home/bruno/go-horse:/app/go-horse
+      - /app/go-horse:/app/go-horse

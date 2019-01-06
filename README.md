@@ -600,10 +600,10 @@ Requests/sec:   2496.72
 Transfer/sec:      5.71MB
 ```
 
-Now a JS filter that uses a property and a function injected in JS filter context by a Go plugin : 
+Now the same JS filter but calling a go plugin's injected property and function   : 
 
 ``` terminal
-[bruno@note-bruno wrk2]$ wrk -t8 -c100 -d10s -R10000 http://localhost:8080/v1.39/containers/json?all=1
+[bruno@labbsr0x wrk2]$ wrk -t8 -c100 -d10s -R10000 http://localhost:8080/v1.39/containers/json?all=1
 Running 10s test @ http://localhost:8080/v1.39/containers/json?all=1
   8 threads and 100 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev

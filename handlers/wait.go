@@ -52,7 +52,7 @@ func WaitHandler(ctx iris.Context) {
 		// if erroWait != nil {
 		// 	log.Error().Err(erroWait).Msgf("Erro ao executar o wait")
 		// }
-		if finish {
+		if finish || erroWait != nil {
 			if respostaWait.Error != nil {
 				fmt.Fprintf(w, "{\"StatusCode\": %d, \"Error\": {\"Message\": \"%s\"}}", respostaWait.StatusCode, respostaWait.Error.Message)
 			}
