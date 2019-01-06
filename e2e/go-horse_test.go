@@ -47,6 +47,8 @@ func init() {
 // }
 
 // https://github.com/docker/cli/blob/master/e2e/container/run_test.go
+// https://github.com/smartystreets/goconvey/
+// https://github.com/ory/dockertest
 
 func TestListContainers(t *testing.T) {
 	ctx := context.Background()
