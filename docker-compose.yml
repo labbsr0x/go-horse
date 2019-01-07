@@ -16,6 +16,8 @@ services:
       - PORT=:8080
       - JS_FILTERS_PATH=/app/go-horse/filters
       - GO_PLUGINS_PATH=/app/go-horse/plugins
-    volumes: 
+      - TOKEN_VALIDATION_ENDPOINT=http://172.24.40.4:3000/info
+      - ACL_AUTHORIZE_ENDPOINT=http://172.24.40.4:4466/warden/subjects/authorize
+    volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /app/go-horse:/app/go-horse
