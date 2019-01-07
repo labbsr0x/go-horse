@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
@@ -45,7 +46,7 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Values().Set("requestBody", string(requestBody))
 	}
 
-	ctx.Values().Set("targetEndpoint", ctx.Request().URL.RequestURI())
+	ctx.Values().Set("path", ctx.Request().URL.Path)
 
 	// mussum was here
 	_, erris := runRequestFilters(ctx)
@@ -56,9 +57,10 @@ func ProxyHandler(ctx iris.Context) {
 		return
 	}
 
-	targetURL := ctx.Values().GetString("targetEndpoint")
+	u := ctx.Request().URL.ResolveReference(&url.URL{Path: ctx.Values().GetString("path"), RawQuery: ctx.Request().URL.RawQuery})
+	path := u.String()
 
-	request, newRequestError := http.NewRequest(ctx.Request().Method, config.TargetHostname+targetURL, strings.NewReader(ctx.Values().GetString("requestBody")))
+	request, newRequestError := http.NewRequest(ctx.Request().Method, config.TargetHostname+path, strings.NewReader(ctx.Values().GetString("requestBody")))
 
 	if newRequestError != nil {
 		log.Error().Str("request", ctx.String()).Err(newRequestError).Msg("Error creating a new request in main handler")
@@ -68,7 +70,7 @@ func ProxyHandler(ctx iris.Context) {
 		request.Header[key] = value
 	}
 
-	log.Debug().Msg("Executing request for URL : " + targetURL + " ...")
+	log.Debug().Msg("Executing request for URL : " + path + " ...")
 
 	response, erre := sockClient.Do(request)
 
@@ -80,7 +82,7 @@ func ProxyHandler(ctx iris.Context) {
 
 	defer response.Body.Close()
 
-	if strings.Contains(targetURL, "build") {
+	if strings.Contains(path, "build") {
 
 		ctx.ContentType("application/json")
 		ctx.Header("Transfer-Encoding", "chunked")
@@ -109,13 +111,8 @@ func ProxyHandler(ctx iris.Context) {
 		ctx.Header(key, value[0])
 	}
 
-	if response.Header.Get("Content-Type") == "text/plain; charset=utf-8" {
-		ctx.StatusCode(response.StatusCode)
-		ctx.Write(responseBody)
-		return
-	}
-
 	ctx.Values().Set("responseBody", string(responseBody))
+	ctx.Values().Set("responseStatusCode", response.StatusCode)
 
 	result, errr := runResponseFilters(ctx)
 
