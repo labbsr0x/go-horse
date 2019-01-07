@@ -12,8 +12,6 @@ import (
 	"github.com/kataras/iris/core/errors"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
-
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 
@@ -80,15 +78,27 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 
 	js := otto.New()
 
-	if body == "" {
-		body = "{}"
+	emptyBody, _ := js.Object("({})")
+	bodyParsed, _ := otto.ToValue(emptyBody)
+	var error error
+	var contentType string
+	var headers http.Header
+	if jsFilter.Invoke == Request {
+		contentType = ctx.Request().Header.Get("Content-Type")
+		headers = ctx.Request().Header
+	} else {
+		contentType = ctx.ResponseWriter().Header().Get("Content-Type")
+		headers = ctx.ResponseWriter().Header()
 	}
-
-	funcRet, error := js.Call("JSON.parse", nil, body)
-	if error != nil {
-		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing body string to JS object - js filter exec")
-		emptyBody, _ := js.Object("({})")
-		funcRet, _ = otto.ToValue(emptyBody)
+	if contentType == "application/json" {
+		if body == "" {
+			body = "{}"
+		}
+		bodyParsed, error = js.Call("JSON.parse", nil, body)
+		if error != nil {
+			log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing body string to JS object - js filter exec")
+			bodyParsed, _ = otto.ToValue(emptyBody)
+		}
 	}
 
 	operation, error := js.Object("({READ : 0, WRITE : 1})")
@@ -96,17 +106,28 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error creating operation object - js filter exec")
 	}
 
-	ctxJsObj, _ := js.Object("({})")
+	urlParamsJsObj, _ := js.Object("({})")
+	urlParamsJsObj.Set("add", func(call otto.FunctionCall) otto.Value { return addURLParamsFromJSContext(ctx, call) })
+	urlParamsJsObj.Set("set", func(call otto.FunctionCall) otto.Value { return setURLParamsFromJSContext(ctx, call) })
+	urlParamsJsObj.Set("get", func(call otto.FunctionCall) otto.Value { return getURLParamsFromJSContext(ctx, call) })
+	urlParamsJsObj.Set("del", func(call otto.FunctionCall) otto.Value { return delURLParamsFromJSContext(ctx, call) })
+	urlParamsJsObj.Set("list", func(call otto.FunctionCall) otto.Value { return listURLParamsFromJSContext(ctx, call) })
 
-	ctxJsObj.Set("url", ctx.Request().URL.String())
-	ctxJsObj.Set("body", funcRet.Object())
+	valuesJsObj, _ := js.Object("({})")
+	valuesJsObj.Set("get", func(call otto.FunctionCall) otto.Value { return requestScopeGetToJSContext(ctx, call) })
+	valuesJsObj.Set("set", func(call otto.FunctionCall) otto.Value { return requestScopeSetToJSContext(ctx, call) })
+	valuesJsObj.Set("list", func(call otto.FunctionCall) otto.Value { return requestScopeListToJSContext(ctx, call) })
+
+	ctxJsObj, _ := js.Object("({})")
+	ctxJsObj.Set("url", ctx.Request().URL.Path)
+	ctxJsObj.Set("body", bodyParsed.Object())
 	ctxJsObj.Set("operation", operation)
 	ctxJsObj.Set("method", strings.ToUpper(ctx.Method()))
-	ctxJsObj.Set("getVar", func(call otto.FunctionCall) otto.Value { return requestScopeGetToJSContext(ctx, call) })
-	ctxJsObj.Set("setVar", func(call otto.FunctionCall) otto.Value { return requestScopeSetToJSContext(ctx, call) })
-	ctxJsObj.Set("listVar", func(call otto.FunctionCall) otto.Value { return requestScopeListToJSContext(ctx, call) })
-	ctxJsObj.Set("headers", ctx.Request().Header)
+	ctxJsObj.Set("headers", headers)
 	ctxJsObj.Set("request", httpRequestTOJSContext)
+	ctxJsObj.Set("values", valuesJsObj)
+	ctxJsObj.Set("urlParams", urlParamsJsObj)
+	ctxJsObj.Set("responseStatusCode", ctx.FormValue("responseStatusCode"))
 
 	js.Set("ctx", ctxJsObj)
 
@@ -194,41 +215,6 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 func errorReturnFilter(error error) (JsFilterFunctionReturn, error) {
 	log.Error().Err(error).Msg("Error parsing filter return value - js filter exec")
 	return JsFilterFunctionReturn{Body: "{\"message\" : \"Proxy error : \"" + error.Error() + "}"}, error
-}
-
-func requestScopeGetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
-	key, error := call.Argument(0).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeGetToJSContext key field - js filter exec")
-	}
-	value := util.RequestScopeGet(ctx, key)
-	result, error := otto.ToValue(value)
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeGetToJSContext function return - js filter exec")
-	}
-	return result
-}
-
-func requestScopeSetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
-	key, error := call.Argument(0).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeSetToJSContext key field - js filter exec")
-	}
-	value, error := call.Argument(1).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeSetToJSContext function exec - js filter exec")
-	}
-	util.RequestScopeSet(ctx, key, value)
-	return otto.NullValue()
-}
-
-func requestScopeListToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
-	mapa := util.RequestScopeList(ctx)
-	result, error := call.Otto.ToValue(mapa)
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeListToJSContext response map - js filter exec")
-	}
-	return result
 }
 
 func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
