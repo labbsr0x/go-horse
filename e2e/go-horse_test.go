@@ -1,23 +1,24 @@
 package tests
 
 import (
-	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/server"
 	. "github.com/smartystreets/goconvey/convey"
+	"gotest.tools/icmd"
 )
 
-var dockerCliTest *client.Client
+const containerName = "e2e-test-container"
 
 func init() {
-	var err error
-	dockerCliTest, err = client.NewClientWithOpts(client.WithVersion(config.DockerAPIVersion), client.WithHost("tcp://localhost:7070"))
-	if err != nil {
-		panic(err)
-	}
+	config.SetLogLevel("error")
+	config.SetPort(":7070")
+	go func() {
+		server.GoHorse()
+	}()
 }
 
 // func TestSomething(t *testing.T) {
@@ -50,25 +51,70 @@ func init() {
 // https://github.com/smartystreets/goconvey/
 // https://github.com/ory/dockertest
 
-func TestListContainers(t *testing.T) {
-	ctx := context.Background()
-	options := types.ContainerListOptions{All: true}
-	var containers []types.Container
-	var err error
-	Convey("When i exec ContainerList method in docker client", t, func() {
-		containers, err = dockerCliTest.ContainerList(ctx, options)
-		So(err, ShouldBeNil)
-		Convey("Results should be greater then 0", func() {
-			So(len(containers), ShouldBeGreaterThan, 0)
+func TestRun(t *testing.T) {
+	Convey("docker run --name e2e-test-container -d redis", t, func() {
+		result := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", containerName, "-d", "redis")
+		So(len(strings.TrimSpace(result.Stdout())), ShouldEqual, 64)
+		So(result.ExitCode, ShouldEqual, 0)
+	})
+}
+
+func TestBuild(t *testing.T) {
+	Convey("docker build -t image-teste-build ./buildtest", t, func() {
+		resultBuild := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "build", "-t", "image-teste-build", "build/")
+		So(resultBuild.ExitCode, ShouldEqual, 0)
+		So(resultBuild.Stdout(), ShouldContainSubstring, "Successfully built")
+		Convey("Create a container from image-teste-build image", func() {
+			resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "-d", "image-teste-build")
+			resultLogs := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "logs", strings.TrimSpace(resultRun.Stdout()))
+			So(resultLogs.Stdout(), ShouldEqual, "GO-HORSE build command test\n")
+			resultRm := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", strings.TrimSpace(resultRun.Stdout()))
+			So(resultRm.ExitCode, ShouldEqual, 0)
 		})
-		Convey("Go-horse container should be running", func() {
-			found := false
-			for _, container := range containers {
-				if container.Image == "go-horse" {
-					found = true
-				}
-			}
-			So(found, ShouldBeTrue)
-		})
+	})
+}
+
+func TestAttach(t *testing.T) {
+	// Convey("Doing some asyn testing", t, func(c C) {
+	//     done := make(chan bool)
+	//     go func() {
+	//         c.So(2, ShouldEqual, 2)
+	//         done <- true
+	//     }()
+	//     _ = <-done
+	// })
+	Convey("docker run --name attach -d redis", t, func(c C) {
+		var resultRun *icmd.Result
+		var resultAttach *icmd.Result
+		var resultStop *icmd.Result
+		done := make(chan bool)
+
+		resultRun = icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", "attach", "-d", "redis")
+
+		go func() {
+			resultAttach = icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "attach", "attach")
+		}()
+
+		go func() {
+			resultStop = icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "container", "stop", "attach")
+			time.Sleep(1 * time.Second)
+			done <- true
+		}()
+
+		<-done
+
+		So(resultAttach.ExitCode, ShouldEqual, 1)
+		So(resultRun.ExitCode, ShouldEqual, 0)
+		So(resultStop.ExitCode, ShouldEqual, 0)
+		// So(resultAttach.Stdout(), ShouldEndWith, "# Redis is now ready to exit, bye bye...\n")
+		resultStop = icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", "attach")
+	})
+}
+
+func TestRemove(t *testing.T) {
+	Convey("docker run -f e2e-test-container", t, func() {
+		result := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", containerName)
+		So(strings.TrimSpace(result.Stdout()), ShouldEqual, containerName)
+		So(result.ExitCode, ShouldEqual, 0)
 	})
 }

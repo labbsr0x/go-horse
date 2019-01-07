@@ -75,13 +75,15 @@ msgLoop:
 		case msg := <-msgs:
 			fmt.Fprintf(conn, "%s", msg)
 		case <-msgsErr:
-			defer conn.Close()
-			defer resp.Close()
-			defer close(msgs)
-			defer close(msgsErr)
 			break msgLoop
 		}
 	}
+
+	defer close(msgs)
+	defer close(msgsErr)
+	defer conn.Close()
+	defer resp.Close()
+
 	ctx.StopExecution()
 	ctx.EndRequest()
 	return

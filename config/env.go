@@ -31,6 +31,16 @@ var JsFiltersPath = defaultValue("JS_FILTERS_PATH", "/app/go-horse/filters")
 // GoPluginsPath GoPluginsPath
 var GoPluginsPath = defaultValue("GO_PLUGINS_PATH", "/app/go-horse/plugins")
 
+// SetPort helper function to change port for e2e tests
+func SetPort(port string) {
+	Port = fixPortValue(port)
+}
+
+// SetLogLevel helper function to change log level for e2e tests
+func SetLogLevel(level string) {
+	LogLevel = fixLogLevel(level)
+}
+
 func fixLogLevel(logLevel string) zerolog.Level {
 	level, error := zerolog.ParseLevel(logLevel)
 	if error != nil {
