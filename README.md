@@ -183,14 +183,14 @@ go-horse will ignore the body you returned because of the value `ctx.operation.R
 
 ##### 3.3. Rewriting URLs sent to the daemon
 
-There's a special variable stored in the request scope that should be changed if you need to rewrite the URL used to daemon's requests : `targetEndpoint`. The way to alter it value is to call the setVar function in the ctx object, argument of the filter function : `ctx.setVar('targetEndpoint', '/v1.39/newEndpoint')`.
-This was useful when we needed to pass a token in the DOCKER_HOST environment variable to identify the user. Ther token was extracted, verified against other system and the original URL was restored (if user was authorized), because the daemon doesn't like tokens.
+There's a special variable stored in the request scope that should be changed if you need to rewrite the URL used to daemon's requests : `path`. The way to alter it value is to call the setVar function in the ctx object, argument of the filter function : `ctx.values.set('path', '/v1.39/newEndpoint')`.
+This was useful when we needed to pass a token in the DOCKER_HOST environment variable to identify the user. The token was extracted, verified against other system and the original URL was restored (if user was authorized), because the daemon doesn't like tokens.
 
 <a name="js_env_vars"/>
 
 ##### 3.4. Environment variables in JS filters
 
-All env vars are available in javascript filters scope. You can list them by calling `ctx.listVars` method. They are have an 'ENV_' prefix.
+All env vars are available in javascript filters scope. You can list them by calling `ctx.values.list()` method. They are have an 'ENV_' prefix.
 
 ##### 3.5. Passing a token in DOCKER_HOST url
 
@@ -198,7 +198,7 @@ All env vars are available in javascript filters scope. You can list them by cal
 
 The routes are duplicated, one version with a `/token/{token}` prefixed and another version without the token prefix.
 
-In our case, this was used in conjunction with a CLI that logs the user in and changes the DOCKER_HOST env var in the user machine to our go-horse address with the token added in its path. The first filter - with order equals 0, extract the token, validates the user and rewrite the url calling `ctx.setVar('targetEndpoint', '<tokenless_url>')`.
+In our case, this was used in conjunction with a CLI that logs the user in and changes the DOCKER_HOST env var in the user machine to our go-horse address with the token added in its path. The first filter - with order equals 0, extract the token, validates the user and rewrite the url calling `ctx.values.set('path', '<tokenless_url>')`.
 
 Another possible solution, and more elegant - i think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identity manager? Maybe.
 
@@ -347,9 +347,9 @@ type Filter interface {
 
 // Exec Exec
 func (filter PluginModel) Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error) {
-	containerName := strings.Split(ctx.Values().GetString("targetEndpoint"), "?name=")
+	containerName := strings.Split(ctx.Values().GetString("path"), "?name=")
 	containerNameReversed := Reverse(containerName[1])
-	ctx.Values().Set("targetEndpoint", containerName[0]+"?name="+containerNameReversed)
+	ctx.Values().Set("path", containerName[0]+"?name="+containerNameReversed)
 	value, _ := sjson.Set(requestBody, "Labels", map[string]interface{}{"pass-through": "Go-Horse"})
 	return true, value, 200, 1, nil
 }
@@ -505,7 +505,7 @@ JS code
 	"pathPattern": ".*",
 	"function" : function(ctx, plugins){
 		for(var i = 0, i < 10000; i++){
-			ctx.getVar('targetEndpoint').split("").join("");
+			ctx.values.get('path').split("").join("");
 			return {status: 200, next: true, body: ctx.body, operation : ctx.operation.READ};
 		}
 	}
@@ -539,7 +539,7 @@ type Filter interface {
 // Exec Exec
 func (filter PluginModel) Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error) {
 	for i := 0; i < 10000; i++ {
-		strings.Join(strings.Split(ctx.Values().GetString("targetEndpoint"), ""), "")
+		strings.Join(strings.Split(ctx.Values().GetString("path"), ""), "")
 	}
 	return true, requestBody, 200, 0, nil
 }
