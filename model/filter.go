@@ -57,7 +57,6 @@ type FilterReturn struct {
 }
 
 type baseFilter struct {
-	Filter
 	FilterConfig
 }
 

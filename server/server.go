@@ -33,6 +33,8 @@ func GoHorse() *iris.Application {
 	app.Post("/{version:string}/exec/{execInstanceId:string}/start", handlers.ExecHandler)
 	app.Any("*", handlers.ProxyHandler)
 
+	app.Get("/active-filters", handlers.ActiveFiltersHandler)
+
 	app.Run(iris.Addr(config.Port), iris.WithoutStartupLog)
 	return app
 }
