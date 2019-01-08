@@ -139,7 +139,7 @@ That function called as 'function' receives 2 arguments. The first one, `ctx` ha
 |ctx.urlParams.**get**|function|gets the value associated with the given key. If there are no values associated with the key, get returns the empty string| -  [string] var key|- [string] var value|
 |ctx.urlParams.**set**|function|sets the key to value. It replaces any existing value| - [string] key |-|
 |ctx.urlParams.**del**|function|deletes the values associated with key| - [string] key |-|
-|ctx.urlParams.**list**|function|parses query parameters and returns an object with corresponding key-value|-|[string object] values
+|ctx.urlParams.**list**|function|parses query parameters and returns an object with corresponding key-value|-|[object] values
 |ctx.**responseStatusCode**|string|original status code from daemon http response|-| [string] status code
 |ctx.**headers**|object|original headers sent by docker client|-| [map string string]
 |ctx.**request**|function|as we saw earlier, another bad name! They have spread all over - easy pull requests, just to mention... that function executes a http request | - [string] http method <br/> - [string] url <br/> - [string] body <br/> - [object] headers <br/>| [object] -> [body : object], [status : int], [headers : object] |
