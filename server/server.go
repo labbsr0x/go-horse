@@ -26,11 +26,13 @@ func GoHorse() *iris.Application {
 	authToken.Get("/{version:string}/containers/{containerId:string}/logs", handlers.LogsHandler)
 	authToken.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
 	authToken.Post("/{version:string}/exec/{execInstanceId:string}/start", handlers.ExecHandler)
+	authToken.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
 
 	app.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AtachHandler)
 	app.Get("/{version:string}/containers/{containerId:string}/logs", handlers.LogsHandler)
 	app.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
 	app.Post("/{version:string}/exec/{execInstanceId:string}/start", handlers.ExecHandler)
+	app.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
 	app.Any("*", handlers.ProxyHandler)
 
 	app.Get("/active-filters", handlers.ActiveFiltersHandler)

@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -10,8 +11,6 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 	"gotest.tools/icmd"
 )
-
-const containerName = "e2e-test-container"
 
 func init() {
 	config.SetLogLevel("error")
@@ -27,36 +26,21 @@ func init() {
 
 func TestRun(t *testing.T) {
 	Convey("docker run --name e2e-test-container -d redis", t, func() {
-		result := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", containerName, "-d", "redis")
+		result := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", "e2e-test-container", "-d", "redis")
 		So(len(strings.TrimSpace(result.Stdout())), ShouldEqual, 64)
 		So(result.ExitCode, ShouldEqual, 0)
 	})
 }
 
-func TestBuild(t *testing.T) {
-	Convey("docker build -t image-teste-build ./buildtest", t, func() {
-		resultBuild := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "build", "-t", "image-teste-build", "build/")
-		So(resultBuild.ExitCode, ShouldEqual, 0)
-		So(resultBuild.Stdout(), ShouldContainSubstring, "Successfully built")
-		Convey("Create a container from image-teste-build image", func() {
-			resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "-d", "image-teste-build")
-			resultLogs := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "logs", strings.TrimSpace(resultRun.Stdout()))
-			So(resultLogs.Stdout(), ShouldEqual, "GO-HORSE build command test\n")
-			resultRm := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", strings.TrimSpace(resultRun.Stdout()))
-			So(resultRm.ExitCode, ShouldEqual, 0)
-		})
+func TestRemove(t *testing.T) {
+	Convey("docker run -f e2e-test-container", t, func() {
+		result := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", "e2e-test-container")
+		So(strings.TrimSpace(result.Stdout()), ShouldEqual, "e2e-test-container")
+		So(result.ExitCode, ShouldEqual, 0)
 	})
 }
 
 func TestAttach(t *testing.T) {
-	// Convey("Doing some asyn testing", t, func(c C) {
-	//     done := make(chan bool)
-	//     go func() {
-	//         c.So(2, ShouldEqual, 2)
-	//         done <- true
-	//     }()
-	//     _ = <-done
-	// })
 	Convey("docker run --name attach -d redis", t, func(c C) {
 		var resultRun *icmd.Result
 		var resultAttach *icmd.Result
@@ -85,10 +69,80 @@ func TestAttach(t *testing.T) {
 	})
 }
 
-func TestRemove(t *testing.T) {
-	Convey("docker run -f e2e-test-container", t, func() {
-		result := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", containerName)
-		So(strings.TrimSpace(result.Stdout()), ShouldEqual, containerName)
-		So(result.ExitCode, ShouldEqual, 0)
+func TestBuild(t *testing.T) {
+	Convey("docker build -t image-teste-build ./buildtest", t, func() {
+		resultBuild := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "build", "-t", "image-teste-build", "build/")
+		So(resultBuild.ExitCode, ShouldEqual, 0)
+		So(resultBuild.Stdout(), ShouldContainSubstring, "Successfully built")
+		resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "-d", "image-teste-build")
+		resultLogs := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "logs", strings.TrimSpace(resultRun.Stdout()))
+		So(resultLogs.Stdout(), ShouldEqual, "GO-HORSE build command test\n")
+		resultRm := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", strings.TrimSpace(resultRun.Stdout()))
+		So(resultRm.ExitCode, ShouldEqual, 0)
+	})
+}
+
+func TestCommit(t *testing.T) {
+	Convey("docker commit", t, func() {
+		resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "-d", "redis")
+		So(resultRun.ExitCode, ShouldEqual, 0)
+		containerID := strings.TrimSpace(resultRun.Stdout())
+		resultExec := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "exec", containerID, "bash", "-c", "echo go-horse_commit_test > /test.test")
+		So(resultExec.ExitCode, ShouldEqual, 0)
+		resultCommit := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "commit", containerID, "commit_test")
+		So(resultCommit.ExitCode, ShouldEqual, 0)
+		resultRunCommit := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "-d", "commit_test")
+		containerCommitID := strings.TrimSpace(resultRunCommit.Stdout())
+		So(resultRunCommit.ExitCode, ShouldEqual, 0)
+		resultExecCommit := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "exec", containerCommitID, "bash", "-c", "cat /test.test")
+		So(resultExecCommit.ExitCode, ShouldEqual, 0)
+		So(strings.TrimSpace(resultExecCommit.Stdout()), ShouldEqual, "go-horse_commit_test")
+		resultRMs := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", containerCommitID, containerID)
+		So(resultRMs.ExitCode, ShouldEqual, 0)
+	})
+}
+
+func TestCP(t *testing.T) {
+	Convey("docker cp", t, func() {
+		resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", "cp_test", "-d", "redis")
+		fmt.Printf(">>>>>>>>>>>>>>>>>>> %s || %s", resultRun.Stdout(), resultRun.Stderr())
+		So(resultRun.ExitCode, ShouldEqual, 0)
+		resultCp := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "cp", "build/Dockerfile", "cp_test:/data")
+		So(resultCp.ExitCode, ShouldEqual, 0)
+		resultExec := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "exec", "cp_test", "ls")
+		fmt.Printf(">>>>>>>>>>>>>>>>>>> %s || %s", resultExec.Stdout(), resultExec.Stderr())
+		So(resultExec.ExitCode, ShouldEqual, 0)
+		So(strings.TrimSpace(resultExec.Stdout()), ShouldEqual, "Dockerfile")
+		resultRM := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", strings.TrimSpace(resultRun.Stdout()))
+		So(resultRM.ExitCode, ShouldEqual, 0)
+	})
+}
+
+func TestContainerStats(t *testing.T) {
+	Convey("docker container stats", t, func() {
+		resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", "stats", "-d", "redis")
+		fmt.Printf(">>>>>>>>>>>>>>>>>>> %s || %s", resultRun.Stdout(), resultRun.Stderr())
+		So(resultRun.ExitCode, ShouldEqual, 0)
+
+		var resultStats *icmd.Result
+		done := make(chan bool)
+		go func() {
+			resultStats = icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "stats", "stats")
+			done <- true
+		}()
+
+		var resultStop *icmd.Result
+		go func() {
+			time.Sleep(time.Second)
+			resultStop = icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", "stats")
+		}()
+
+		<-done
+
+		fmt.Printf(":::::::::::::::: %s", resultStats.Stdout())
+		fmt.Printf(":::::::::::::::: %s", resultStop.Stdout())
+
+		So(resultStats.ExitCode, ShouldEqual, 0)
+		So(resultStop.ExitCode, ShouldEqual, 0)
 	})
 }
