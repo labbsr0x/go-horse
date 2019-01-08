@@ -84,6 +84,7 @@ func ProxyHandler(ctx iris.Context) {
 
 	if strings.Contains(path, "build") {
 
+		ctx.ResetResponseWriter(ctx.ResponseWriter())
 		ctx.ContentType("application/json")
 		ctx.Header("Transfer-Encoding", "chunked")
 

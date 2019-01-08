@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,6 +19,7 @@ func init() {
 	go func() {
 		server.GoHorse()
 	}()
+	SetDefaultFailureMode(FailureContinues)
 }
 
 // https://github.com/docker/cli/blob/master/e2e/container/run_test.go
@@ -120,29 +122,30 @@ func TestCP(t *testing.T) {
 
 func TestContainerStats(t *testing.T) {
 	Convey("docker container stats", t, func() {
-		resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", "stats", "-d", "redis")
-		fmt.Printf(">>>>>>>>>>>>>>>>>>> %s || %s", resultRun.Stdout(), resultRun.Stderr())
+		resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", "stats_container", "-d", "redis")
 		So(resultRun.ExitCode, ShouldEqual, 0)
 
 		var resultStats *icmd.Result
-		done := make(chan bool)
+		done := make(chan string)
 		go func() {
-			resultStats = icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "stats", "stats")
-			done <- true
+			command := icmd.Cmd{Command: append([]string{"docker", "-H", "tcp://localhost:7070", "stats", "stats_container"}), Timeout: 5 * time.Second}
+			resultStats = icmd.StartCmd(command)
+			time.Sleep(5 * time.Second)
+			resultStats.Cmd.Process.Signal(os.Interrupt)
+			done <- resultStats.Combined()
 		}()
 
-		var resultStop *icmd.Result
-		go func() {
-			time.Sleep(time.Second)
-			resultStop = icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", "stats")
-		}()
+		msg := <-done
 
-		<-done
-
-		fmt.Printf(":::::::::::::::: %s", resultStats.Stdout())
-		fmt.Printf(":::::::::::::::: %s", resultStop.Stdout())
+		So(msg, ShouldContainSubstring, "CONTAINER ID")
+		So(msg, ShouldContainSubstring, "CPU %")
+		So(msg, ShouldContainSubstring, "MEM USAGE / LIMIT")
+		So(msg, ShouldContainSubstring, "NET I/O")
+		So(msg, ShouldContainSubstring, "stats_container")
 
 		So(resultStats.ExitCode, ShouldEqual, 0)
-		So(resultStop.ExitCode, ShouldEqual, 0)
+
+		resultRM := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", strings.TrimSpace(resultRun.Stdout()))
+		So(resultRM.ExitCode, ShouldEqual, 0)
 	})
 }

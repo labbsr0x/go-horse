@@ -23,7 +23,7 @@ var LogLevel = fixLogLevel(defaultValue("LOG_LEVEL", "debug"))
 var PrettyLog = defaultValueBol("PRETTY_LOG", true)
 
 // Port Port
-var Port = fixPortValue(defaultValue("PORT", ":8080"))
+var Port = fixPortValue(defaultValue("PORT", ":9090"))
 
 // JsFiltersPath JsFiltersPath
 var JsFiltersPath = defaultValue("JS_FILTERS_PATH", "/app/go-horse/filters")

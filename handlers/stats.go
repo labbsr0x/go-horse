@@ -29,6 +29,7 @@ func StatsHandler(ctx iris.Context) {
 	response, err := dockerCli.ContainerStats(context, ctx.Params().Get("containerId"), util.GetRequestParameter(params, "stream") == "1")
 
 	writer := ctx.ResponseWriter()
+	ctx.ResetResponseWriter(writer)
 
 	if err != nil {
 		writer.WriteString(err.Error())

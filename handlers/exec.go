@@ -56,8 +56,9 @@ func ExecHandler(ctx iris.Context) {
 	}()
 
 	_, upgrade := ctx.Request().Header["Upgrade"]
-
-	conn, _, err := ctx.ResponseWriter().Hijack()
+	writer := ctx.ResponseWriter()
+	ctx.ResetResponseWriter(writer)
+	conn, _, err := writer.Hijack()
 	if err != nil {
 		log.Error().Err(err).Msg("conn hijack failed")
 	}

@@ -42,6 +42,7 @@ func LogsHandler(ctx iris.Context) {
 	defer responseBody.Close()
 
 	writer := ctx.ResponseWriter()
+	ctx.ResetResponseWriter(writer)
 
 	if err != nil {
 		writer.WriteString(err.Error())
