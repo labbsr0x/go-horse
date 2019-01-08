@@ -12,7 +12,7 @@
   3.1. [ Filter function arguments ](#js_filter_func_args)<br/>
   3.2. [ Filter function return ](#js_filter_func_ret)<br/>
   &emsp;3.2.1. [Tricky return combinations](#js_tricky)<br/>
-  3.3. [ Rewriting URLs sended to the daemon ](#js_rewrite)<br/>
+  3.3. [ Rewriting URLs sent to the daemon ](#js_rewrite)<br/>
   3.4. [ Environment variables in JS filters ](#js_env_vars)<br/>
 4. [ Filtering requests using Go ](#go_filter)<br/>
   4.1. [ Go filter interface ](#go_interface)<br/>
@@ -27,7 +27,7 @@
 
 ### 1. How it works
 
-Docker (http) commands sent from the client to the deamon are intercepted by creating filters in go-horse. This filters can be implemented either in JavaScript or Golang. You should inform a *path pattern* to match a command url (check [docker api docs](https://docs.docker.com/engine/api/v1.39/) or see go-horse logs to map what urls are requested by docker client commands), a *invoke* property telling if you want the filter to run at the Request time, before the request hit the daemon, or on Response time, after the daemon has processed the request. Once your filter gets a request, you have all the means to implement the rules your business needs. Rewrite a url to the docker daemon? Check the user identity in another system? Send a http request and break the filter chain based on the response? Add metadata to a container? Change container properties? Compute specific metrics?  Blacklist some commands? Ok, can do. This and many more.
+Docker (http) commands sent from the client to the daemon are intercepted by creating filters in go-horse. This filters can be implemented either in JavaScript or Golang. You should inform a *path pattern* to match a command url (check [docker api docs](https://docs.docker.com/engine/api/v1.39/) or see go-horse logs to map what urls are requested by docker client commands), a *invoke* property telling if you want the filter to run at the Request time, before the request hit the daemon, or on Response time, after the daemon has processed the request. Once your filter gets a request, you have all the means to implement the rules your business needs. Rewrite a url to the docker daemon? Check the user identity in another system? Send a http request and break the filter chain based on the response? Add metadata to a container? Change container properties? Compute specific metrics?  Blacklist some commands? Ok, can do. This and many more.
 
 <br/>
 <a name="running"/>
@@ -128,12 +128,20 @@ That function called as 'function' receives 2 arguments. The first one, `ctx` ha
 | --------- | ---------- |------------|------------|------------|
 |ctx.**url**|string|original url called by docker client|-|-|
 |ctx.**body**|object|body of the request from the client or the body's response from the daemon. Depending on the `invoke` field in the filter's file definition name|-|-|
-|ctx.**operation**|object|a helper object to use in the return of the filter function `function`, telling if the body should be **overriden** :`operation.WRITE` or **not** : `operation.READ`|-|-|
+|ctx.**operation**|object|a helper object to use in the return of the filter function `function`, telling if the body should be **overridden** :`operation.WRITE` or **not** : `operation.READ`|-|-|
 |ctx.**method**|string|http method of the request from the client|-|-|
-|ctx.**getVar**|function|get the value of this variable with scope limited by the request lifetime and shared between all filters| -  [string] var name|- [string] var value
-|ctx.**setVar**|function|set the variable with the provided value and make that avaliable to the next filters in the chain until the end of the request| - [string] name <br/> -  [string] value |-|
-|ctx.**listVar**|function|list all variable names within this request's scope|-|[string array] names
-|ctx.**headers**|object|original headers sended by docker client|-| [map string string]
+|ctx.**values**|object|a object with functions to share data between all filters by request lifetime|-|-|
+|ctx.values.**get**|function|get the value of this variable with scope limited by the request lifetime and shared between all filters| -  [string] var name|- [string] var value
+|ctx.values.**set**|function|set the variable with the provided value and make that available to the next filters in the chain until the end of the request| - [string] name <br/> -  [string] value |-|
+|ctx.values.**list**|function|list all variable names within this request's scope|-|[string array] names
+|ctx.**urlParams**|object|a object with functions to manipulate request query parameters|-|-|
+|ctx.urlParams.**add**|function|adds the value to key. It appends to any existing values associated with key.| -  [string] var key|-|
+|ctx.urlParams.**get**|function|gets the value associated with the given key. If there are no values associated with the key, get returns the empty string| -  [string] var key|- [string] var value|
+|ctx.urlParams.**set**|function|sets the key to value. It replaces any existing value| - [string] key |-|
+|ctx.urlParams.**del**|function|deletes the values associated with key| - [string] key |-|
+|ctx.urlParams.**list**|function|parses query parameters and returns an object with corresponding key-value|-|[string object] values
+|ctx.**responseStatusCode**|string|original status code from daemon http response|-| [string] status code
+|ctx.**headers**|object|original headers sent by docker client|-| [map string string]
 |ctx.**request**|function|as we saw earlier, another bad name! They have spread all over - easy pull requests, just to mention... that function executes a http request | - [string] http method <br/> - [string] url <br/> - [string] body <br/> - [object] headers <br/>| [object] -> [body : object], [status : int], [headers : object] |
 
 After process the request, the filter needs to return a object like this :
@@ -173,7 +181,7 @@ go-horse will ignore the body you returned because of the value `ctx.operation.R
 
 <a name="js_rewrite"/>
 
-##### 3.3. Rewriting URLs sended to the daemon
+##### 3.3. Rewriting URLs sent to the daemon
 
 There's a special variable stored in the request scope that should be changed if you need to rewrite the URL used to daemon's requests : `targetEndpoint`. The way to alter it value is to call the setVar function in the ctx object, argument of the filter function : `ctx.setVar('targetEndpoint', '/v1.39/newEndpoint')`.
 This was useful when we needed to pass a token in the DOCKER_HOST environment variable to identify the user. Ther token was extracted, verified against other system and the original URL was restored (if user was authorized), because the daemon doesn't like tokens.
@@ -182,7 +190,7 @@ This was useful when we needed to pass a token in the DOCKER_HOST environment va
 
 ##### 3.4. Environment variables in JS filters
 
-All env vars are avaliable in javascript filters scope. You can list them by calling `ctx.listVars` method. They are have an 'ENV_' prefix.
+All env vars are available in javascript filters scope. You can list them by calling `ctx.listVars` method. They are have an 'ENV_' prefix.
 
 ##### 3.5. Passing a token in DOCKER_HOST url
 
@@ -192,7 +200,7 @@ The routes are duplicated, one version with a `/token/{token}` prefixed and anot
 
 In our case, this was used in conjunction with a CLI that logs the user in and changes the DOCKER_HOST env var in the user machine to our go-horse address with the token added in its path. The first filter - with order equals 0, extract the token, validates the user and rewrite the url calling `ctx.setVar('targetEndpoint', '<tokenless_url>')`.
 
-Another possible solution, and more elegant - i think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identy manager? Maybe.
+Another possible solution, and more elegant - i think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identity manager? Maybe.
 
 <br/>
 <a name="go_filter"/>
@@ -584,7 +592,7 @@ Running 30s test @ http://localhost:8080/v1.39/containers/json?all=1
 Requests/sec:    186.16
 Transfer/sec:    436.12KB
 ```
-Wierd. Wasn't expecting this.
+Weird. Wasn't expecting this.
 
 A simple test : the same benchmark code that was running inside the plugin but now running directly in go-horse code. No go plugins involved here.
 
