@@ -21,32 +21,6 @@ func init() {
 	}()
 }
 
-// func TestSomething(t *testing.T) {
-// 	Convey("1 should equal 1", t, func() {
-// 		So(1, ShouldEqual, 1)
-// 	})
-// }
-
-// func TestAnotherTest(t *testing.T) {
-// 	Convey("Comparing two variables", t, func() {
-// 		myVar := "Hello, world!"
-
-// 		Convey(`"Asdf" should NOT equal "qwerty"`, func() {
-// 			So("Asdf", ShouldNotEqual, "qwerty")
-// 		})
-
-// 		Convey("myVar should not be nil", func() {
-// 			So(myVar, ShouldNotBeNil)
-// 		})
-// 	})
-// }
-
-// func TestSomething2(t *testing.T) {
-// 	Convey("2 should not equal 3", t, func() {
-// 		So(2, ShouldNotEqual, 3)
-// 	})
-// }
-
 // https://github.com/docker/cli/blob/master/e2e/container/run_test.go
 // https://github.com/smartystreets/goconvey/
 // https://github.com/ory/dockertest
