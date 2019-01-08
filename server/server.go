@@ -35,6 +35,8 @@ func GoHorse() *iris.Application {
 	app.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
 	app.Any("*", handlers.ProxyHandler)
 
+	app.Get("/active-filters", handlers.ActiveFiltersHandler)
+
 	app.Run(iris.Addr(config.Port), iris.WithoutStartupLog)
 	return app
 }
