@@ -24,6 +24,7 @@ func GoHorse() *iris.Application {
 	authToken := app.Party("/token/{token:string}/")
 	authToken.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AtachHandler)
 	authToken.Get("/{version:string}/containers/{containerId:string}/logs", handlers.LogsHandler)
+	authToken.Get("/{version:string}/services/{containerId:string}/logs", handlers.LogsHandler)
 	authToken.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
 	authToken.Post("/{version:string}/exec/{execInstanceId:string}/start", handlers.ExecHandler)
 	authToken.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
@@ -31,6 +32,7 @@ func GoHorse() *iris.Application {
 
 	app.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AtachHandler)
 	app.Get("/{version:string}/containers/{containerId:string}/logs", handlers.LogsHandler)
+	app.Get("/{version:string}/services/{containerId:string}/logs", handlers.LogsHandler)
 	app.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
 	app.Post("/{version:string}/exec/{execInstanceId:string}/start", handlers.ExecHandler)
 	app.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
