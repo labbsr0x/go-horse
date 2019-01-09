@@ -44,6 +44,8 @@ func WaitHandler(ctx iris.Context) {
 		}
 	}()
 
+	ctx.ResetResponseWriter(ctx.ResponseWriter())
+
 	ctx.ContentType("application/json")
 	ctx.Header("Transfer-Encoding", "chunked")
 
