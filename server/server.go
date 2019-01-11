@@ -22,7 +22,7 @@ func GoHorse() *iris.Application {
 
 	//TODO mapear rota para receber token ou nao
 	authToken := app.Party("/token/{token:string}/")
-	authToken.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AtachHandler)
+	authToken.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AttachHandler)
 	authToken.Get("/{version:string}/containers/{containerId:string}/logs", handlers.LogsHandler)
 	authToken.Get("/{version:string}/services/{containerId:string}/logs", handlers.LogsHandler)
 	authToken.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
@@ -30,7 +30,7 @@ func GoHorse() *iris.Application {
 	authToken.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
 	authToken.Get("/{version:string}/events", handlers.EventsHandler)
 
-	app.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AtachHandler)
+	app.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AttachHandler)
 	app.Get("/{version:string}/containers/{containerId:string}/logs", handlers.LogsHandler)
 	app.Get("/{version:string}/services/{containerId:string}/logs", handlers.LogsHandler)
 	app.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 	"time"
 
@@ -14,9 +15,9 @@ import (
 // LogsHandler handle logs command
 func LogsHandler(ctx iris.Context) {
 
-	util.SetEnvVars(ctx)
+	util.SetFilterContextValues(ctx)
 
-	_, err := runRequestFilters(ctx)
+	_, err := filters.RunRequestFilters(ctx, RequestBodyKey)
 
 	if err != nil {
 		ctx.StopExecution()

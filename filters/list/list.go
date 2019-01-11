@@ -2,6 +2,8 @@ package list
 
 import (
 	"fmt"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filtergo"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filterjs"
 
 	"sort"
 	"sync"
@@ -10,8 +12,7 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/model"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/radovskyb/watcher"
 	"github.com/rs/zerolog/log"
 )
@@ -64,10 +65,10 @@ func Load() {
 	Request = Request[:0]
 	Response = Response[:0]
 
-	jsFilters := filters.Load()
+	jsFilters := filterjs.Load()
 	goFilters := plugins.Load()
-	for _, jsfilter := range jsFilters {
-		filter := model.NewFilterJS(jsfilter)
+	for _, jsFilter := range jsFilters {
+		filter := filterjs.NewFilterJS(jsFilter)
 		All = append(All, filter)
 		if filter.Config().Invoke == model.Request {
 			Request = append(Request, filter)
@@ -75,8 +76,8 @@ func Load() {
 			Response = append(Response, filter)
 		}
 	}
-	for _, gofilter := range goFilters {
-		filter := model.NewFilterGO(gofilter)
+	for _, goFilter := range goFilters {
+		filter := filtergo.NewFilterGO(goFilter)
 		All = append(All, filter)
 		if filter.Config().Invoke == model.Request {
 			Request = append(Request, filter)

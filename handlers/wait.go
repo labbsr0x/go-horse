@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 	"time"
 
@@ -14,9 +15,9 @@ import (
 // WaitHandler lero lero
 func WaitHandler(ctx iris.Context) {
 
-	util.SetEnvVars(ctx)
+	util.SetFilterContextValues(ctx)
 
-	_, er := runRequestFilters(ctx)
+	_, er := filters.RunRequestFilters(ctx, RequestBodyKey)
 
 	if er != nil {
 		ctx.StopExecution()
