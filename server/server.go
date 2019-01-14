@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"os"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
@@ -19,12 +21,14 @@ func GoHorse() *iris.Application {
 
 	app := iris.New()
 	app.Use(recover.New())
+	app.Use(prometheus.GetMetrics().ServeHTTP)
 
 	app.Get("/active-filters", handlers.ActiveFiltersHandler)
+	app.Get("/metrics", iris.FromStd(promhttp.Handler()))
 
 	//TODO mapear rota para receber token ou nao
 	authToken := app.Party("/token/{token:string}/")
-	authToken.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AtachHandler)
+	authToken.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AttachHandler)
 	authToken.Get("/{version:string}/containers/{id:string}/logs", handlers.LogsHandler).Name = "container-logs"
 	authToken.Get("/{version:string}/services/{id:string}/logs", handlers.LogsHandler).Name = "service-logs"
 	authToken.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
@@ -32,7 +36,7 @@ func GoHorse() *iris.Application {
 	authToken.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
 	authToken.Get("/{version:string}/events", handlers.EventsHandler)
 
-	app.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AtachHandler)
+	app.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AttachHandler)
 	app.Get("/{version:string}/containers/{id:string}/logs", handlers.LogsHandler).Name = "container-logs"
 	app.Get("/{version:string}/services/{id:string}/logs", handlers.LogsHandler).Name = "service-logs"
 	app.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)

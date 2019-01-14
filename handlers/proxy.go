@@ -1,21 +1,27 @@
 package handlers
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
+
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/list"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/model"
+
 	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/client"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
+)
+
+const (
+	RequestBodyKey  = "requestBody"
+	ResponseBodyKey = "responseBody"
 )
 
 var sockClient = sockclient.Get(config.DockerSockURL)
@@ -34,20 +40,20 @@ func ProxyHandler(ctx iris.Context) {
 
 	log.Info().Str("request", ctx.String()).Msg("Receiving request")
 
-	util.SetEnvVars(ctx)
+	util.SetFilterContextValues(ctx)
 
 	if ctx.Request().Body != nil {
 		requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
 		if erro != nil {
 			log.Error().Str("request", ctx.String()).Err(erro)
 		}
-		ctx.Values().Set("requestBody", string(requestBody))
+		ctx.Values().Set(RequestBodyKey, string(requestBody))
 	}
 
 	ctx.Values().Set("path", ctx.Request().URL.Path)
 
 	// mussum was here
-	_, erris := runRequestFilters(ctx)
+	_, erris := filters.RunRequestFilters(ctx, RequestBodyKey)
 
 	if erris != nil {
 		log.Error().Err(erris).Msg("Error during the execution of REQUEST filters")
@@ -58,7 +64,7 @@ func ProxyHandler(ctx iris.Context) {
 	u := ctx.Request().URL.ResolveReference(&url.URL{Path: ctx.Values().GetString("path"), RawQuery: ctx.Request().URL.RawQuery})
 	path := u.String()
 
-	request, newRequestError := http.NewRequest(ctx.Request().Method, config.TargetHostname+path, strings.NewReader(ctx.Values().GetString("requestBody")))
+	request, newRequestError := http.NewRequest(ctx.Request().Method, config.TargetHostname+path, strings.NewReader(ctx.Values().GetString(RequestBodyKey)))
 
 	if newRequestError != nil {
 		log.Error().Str("request", ctx.String()).Err(newRequestError).Msg("Error creating a new request in main handler")
@@ -112,10 +118,10 @@ func ProxyHandler(ctx iris.Context) {
 		}
 	}
 
-	ctx.Values().Set("responseBody", string(responseBody))
+	ctx.Values().Set(ResponseBodyKey, string(responseBody))
 	ctx.Values().Set("responseStatusCode", response.StatusCode)
 
-	result, errr := runResponseFilters(ctx)
+	result, errr := filters.RunResponseFilters(ctx, ResponseBodyKey)
 
 	if errr != nil {
 		log.Error().Err(errr).Msg("Error during the execution of RESPONSE filters")
@@ -125,7 +131,7 @@ func ProxyHandler(ctx iris.Context) {
 
 	ctx.StatusCode(fixZeroStatus(result, response))
 	ctx.ContentType("application/json")
-	ctx.WriteString(ctx.Values().GetString("responseBody"))
+	ctx.WriteString(ctx.Values().GetString(ResponseBodyKey))
 }
 
 func fixZeroStatus(result model.FilterReturn, response *http.Response) int {
@@ -133,76 +139,4 @@ func fixZeroStatus(result model.FilterReturn, response *http.Response) int {
 		return response.StatusCode
 	}
 	return result.Status
-}
-
-func runRequestFilters(ctx iris.Context) (result model.FilterReturn, err error) {
-	requestPath := ctx.Path()
-	log.Debug().Msgf("Running REQUEST filters for url : %s", requestPath)
-
-	for _, filter := range list.RequestFilters() {
-		if filter.MatchURL(ctx) {
-			log.Debug().Str("Filter matched", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config())).Msg("executing filter ...")
-			result, err = filter.Exec(ctx, ctx.Values().GetString("requestBody"))
-			if err != nil {
-				log.Error().Err(err).Msgf("Error applying filter : %s", filter.Config().Name)
-			}
-			log.Debug().Str("Filter output", fmt.Sprintf("%#v", result)).Str("filter_config", fmt.Sprintf("%#v", result)).Msg("filter execution end")
-			if result.Operation == model.Write {
-				log.Debug().Msgf("Body rewrite for filter : %s", filter.Config().Name)
-				ctx.Values().Set("requestBody", result.Body)
-			}
-			if !result.Next {
-				log.Info().Msgf("Filter chain canceled by filter - %s", filter.Config().Name)
-				break
-			}
-		}
-	}
-
-	if err != nil {
-		if result.Status == 0 {
-			result.Status = http.StatusInternalServerError
-		}
-		ctx.StatusCode(result.Status)
-		ctx.ContentType("application/json")
-		ctx.WriteString(err.Error())
-	}
-
-	return
-}
-
-func runResponseFilters(ctx iris.Context) (result model.FilterReturn, err error) {
-
-	requestPath := ctx.Path()
-	log.Debug().Msgf("Running RESPONSE filters for url : %s", requestPath)
-
-	for _, filter := range list.ResponseFilters() {
-		if filter.MatchURL(ctx) {
-			log.Debug().Str("Filter matched", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filter.Config())).Msg("executing filter ...")
-			result, err = filter.Exec(ctx, ctx.Values().GetString("responseBody"))
-			if err != nil {
-				log.Error().Err(err).Msgf("Error applying filter : %s", filter.Config().Name)
-			}
-			log.Debug().Str("Filter output", fmt.Sprintf("%#v", result)).Str("filter_config", fmt.Sprintf("%#v", result)).Msg("filter execution end")
-			if result.Operation == model.Write {
-				log.Debug().Msgf("Body rewrite for filter : %s", filter.Config().Name)
-				ctx.Values().Set("responseBody", result.Body)
-				ctx.StatusCode(result.Status)
-			}
-			if !result.Next {
-				log.Info().Msgf("Filter chain canceled by filter - %s", filter.Config().Name)
-				break
-			}
-		}
-	}
-
-	if err != nil {
-		if result.Status == 0 {
-			result.Status = http.StatusInternalServerError
-		}
-		ctx.StatusCode(result.Status)
-		ctx.ContentType("application/json")
-		ctx.WriteString(err.Error())
-	}
-
-	return
 }

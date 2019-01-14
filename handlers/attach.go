@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/api/types"
@@ -10,12 +11,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// AtachHandler handle attach command
-func AtachHandler(ctx iris.Context) {
+// AttachHandler handle attach command
+func AttachHandler(ctx iris.Context) {
 
-	util.SetEnvVars(ctx)
+	util.SetFilterContextValues(ctx)
 
-	_, err := runRequestFilters(ctx)
+	_, err := filters.RunRequestFilters(ctx, RequestBodyKey)
 
 	if err != nil {
 		ctx.StopExecution()

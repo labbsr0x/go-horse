@@ -1,25 +1,25 @@
 package plugins
 
 import (
-	"io/ioutil"
-	"plugin"
-
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"
 	"github.com/rs/zerolog/log"
+	"io/ioutil"
+	"plugin"
 )
 
 // FilterPluginList filters
-var FilterPluginList []Filter
+var FilterPluginList []GoFilterDefinition
 
 // JSPluginList plugins to set functions in JS context
 var JSPluginList []JSContextInjection
 
 // Filter Filter
-type Filter interface {
-	Config() (Name string, Order int, PathPattern string, Invoke int)
-	Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error)
+type GoFilterDefinition interface {
+	Config() model.FilterConfig
+	Exec(ctx iris.Context, requestBody string) (model.FilterReturn, error)
 }
 
 // JSContextInjection JSContextInjection
@@ -29,7 +29,7 @@ type JSContextInjection interface {
 }
 
 // Load Load
-func Load() []Filter {
+func Load() []GoFilterDefinition {
 
 	if FilterPluginList != nil || JSPluginList != nil {
 		return FilterPluginList
@@ -54,12 +54,11 @@ func Load() []Filter {
 			log.Error().Err(err).Str("plugin_path", config.GoPluginsPath+"/"+file.Name()).Msg("Could not load plugin")
 		}
 
-		var filter Filter
-		filter, ok := symPlugin.(Filter)
+		var filter GoFilterDefinition
+		filter, ok := symPlugin.(GoFilterDefinition)
 		if ok {
 			FilterPluginList = append(FilterPluginList, filter)
-			name, _, _, _ := filter.Config()
-			log.Debug().Str("plugin_name", name).Str("type", "filter").Msg("Plugin loaded")
+			log.Debug().Str("plugin_name", filter.Config().Name).Str("type", "filter").Msg("Plugin loaded")
 		}
 
 		var js JSContextInjection

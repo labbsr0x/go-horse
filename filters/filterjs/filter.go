@@ -1,8 +1,9 @@
-package filters
+package filterjs
 
 import (
 	"encoding/json"
 	"fmt"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -21,61 +22,30 @@ import (
 
 var client = &http.Client{}
 
-// BodyOperation : Read or Write > If the body content was updated by the filter and needs to be overwritten in the response,  Write property should be passed
-type BodyOperation int
-
-const (
-	// Read : no changes, keep the original
-	Read BodyOperation = 0
-	// Write : changes made, override the old
-	Write BodyOperation = 1
-)
-
-// Invoke : a property to tell if the filter is gonna be executed before (Request) or after (Response) the client request be send to the docker daemon
-type Invoke int
-
-const (
-	// Response filter invoke on the response from the docker daemon
-	Response Invoke = 0
-	// Request filter invoke on the request from the docker client
-	Request Invoke = 1
-)
-
-// JsFilterModel javascript filter model
-type JsFilterModel struct {
-	Name        string
-	Order       int
-	PathPattern string
-	Invoke      Invoke
-	Function    string
-	regex       *regexp.Regexp
+// FilterJS JS proxy filter
+type FilterJS struct {
+	model.FilterConfig
 }
 
-// JsFilterFunctionReturn the return from the javascript filter execution
-type JsFilterFunctionReturn struct {
-	Next      bool
-	Body      string
-	Status    int
-	Operation BodyOperation
-	Err       error
+// NewFilterJS JS filter factory
+func NewFilterJS(innerType model.FilterConfig) FilterJS {
+	filterJs := FilterJS{}
+	filterJs.FilterConfig = innerType
+	return filterJs
 }
 
-// MatchURL tells if the filter should be executed for the URL in the context
-func (jsFilter JsFilterModel) MatchURL(ctx iris.Context) bool {
-	if jsFilter.regex == nil {
-		regex, error := regexp.Compile(jsFilter.PathPattern)
-		if error != nil {
-			log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error compiling the filter url matcher regex")
-		} else {
-			jsFilter.regex = regex
-		}
-	}
-	return jsFilter.regex.MatchString(ctx.RequestPath(false))
+// MatchURL js
+func (filterJs FilterJS) MatchURL(ctx iris.Context) bool {
+	return filterJs.Regex.MatchString(ctx.RequestPath(false))
+}
+
+// Config js
+func (filterJs FilterJS) Config() model.FilterConfig {
+	return filterJs.FilterConfig
 }
 
 // Exec run the filter
-func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunctionReturn, error) {
-
+func (filterJs FilterJS) Exec(ctx iris.Context, body string) (model.FilterReturn, error) {
 	js := otto.New()
 
 	emptyBody, _ := js.Object("({})")
@@ -83,7 +53,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 	var error error
 	var contentType string
 	var headers http.Header
-	if jsFilter.Invoke == Request {
+	if filterJs.Invoke == model.Request {
 		contentType = ctx.Request().Header.Get("Content-Type")
 		headers = ctx.Request().Header
 	} else {
@@ -96,14 +66,14 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 		}
 		bodyParsed, error = js.Call("JSON.parse", nil, body)
 		if error != nil {
-			log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error parsing body string to JS object - js filter exec")
+			log.Error().Str("plugin_name", filterJs.Name).Err(error).Msg("Error parsing body string to JS object - js filter exec")
 			bodyParsed, _ = otto.ToValue(emptyBody)
 		}
 	}
 
 	operation, error := js.Object("({READ : 0, WRITE : 1})")
 	if error != nil {
-		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error creating operation object - js filter exec")
+		log.Error().Str("plugin_name", filterJs.Name).Err(error).Msg("Error creating operation object - js filter exec")
 	}
 
 	urlParamsJsObj, _ := js.Object("({})")
@@ -142,16 +112,16 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 
 	js.Set("plugins", pluginsJsObj)
 
-	returnValue, error := js.Run("(" + jsFilter.Function + ")(ctx, plugins)")
+	returnValue, error := js.Run("(" + filterJs.Function + ")(ctx, plugins)")
 
 	if error != nil {
-		log.Error().Str("plugin_name", jsFilter.Name).Err(error).Msg("Error executing filter - js filter exec")
-		return JsFilterFunctionReturn{Next: false, Body: "{\"message\" : \"Error from docker daemon proxy go-horse : \"" + error.Error() + "}"}, error
+		log.Error().Str("plugin_name", filterJs.Name).Err(error).Msg("Error executing filter - js filter exec")
+		return model.FilterReturn{Next: false, Body: "{\"message\" : \"Error from docker daemon proxy go-horse : \"" + error.Error() + "}"}, error
 	}
 
 	result := returnValue.Object()
 
-	jsFunctionReturn := JsFilterFunctionReturn{}
+	jsFunctionReturn := model.FilterReturn{}
 
 	if value, err := result.Get("next"); err == nil {
 		if value, err := value.ToBoolean(); err == nil {
@@ -175,11 +145,7 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 
 	if value, err := result.Get("operation"); err == nil {
 		if value, err := value.ToInteger(); err == nil {
-			if value == 1 {
-				jsFunctionReturn.Operation = Write
-			} else {
-				jsFunctionReturn.Operation = Read
-			}
+			jsFunctionReturn.Operation = model.BodyOperation(value)
 		} else {
 			return errorReturnFilter(error)
 		}
@@ -208,13 +174,13 @@ func (jsFilter JsFilterModel) Exec(ctx iris.Context, body string) (JsFilterFunct
 	} else {
 		return errorReturnFilter(error)
 	}
-	// wierd
+	// weird
 	return jsFunctionReturn, jsFunctionReturn.Err
 }
 
-func errorReturnFilter(error error) (JsFilterFunctionReturn, error) {
+func errorReturnFilter(error error) (model.FilterReturn, error) {
 	log.Error().Err(error).Msg("Error parsing filter return value - js filter exec")
-	return JsFilterFunctionReturn{Body: "{\"message\" : \"Proxy error : \"" + error.Error() + "}"}, error
+	return model.FilterReturn{Body: "{\"message\" : \"Proxy error : \"" + error.Error() + "}"}, error
 }
 
 func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
@@ -306,12 +272,11 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 }
 
 // Load load the filter from files
-func Load() []JsFilterModel {
+func Load() []model.FilterConfig {
 	return parseFilterObject(readFromFile())
 }
 
 func readFromFile() map[string]string {
-
 	var jsFilterFunctions = make(map[string]string)
 
 	files, err := ioutil.ReadDir(config.JsFiltersPath)
@@ -332,8 +297,8 @@ func readFromFile() map[string]string {
 	return jsFilterFunctions
 }
 
-func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
-	var filterMoldels []JsFilterModel
+func parseFilterObject(jsFilterFunctions map[string]string) []model.FilterConfig {
+	var filterModels []model.FilterConfig
 
 	fileNamePattern := regexp.MustCompile("^([0-9]{1,3})\\.(request|response)\\.(.*?)\\.js$")
 
@@ -358,12 +323,12 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 
 		filter := funcFilterDefinition.Object()
 
-		filterDefinition := JsFilterModel{}
+		filterDefinition := model.FilterConfig{}
 
 		if invokeTime == "request" {
-			filterDefinition.Invoke = Request
+			filterDefinition.Invoke = model.Request
 		} else {
-			filterDefinition.Invoke = Response
+			filterDefinition.Invoke = model.Response
 		}
 
 		oderInt, orderParserError := strconv.Atoi(order)
@@ -377,6 +342,10 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 		if value, err := filter.Get("pathPattern"); err == nil {
 			if value, err := value.ToString(); err == nil {
 				filterDefinition.PathPattern = value
+				filterDefinition.Regex, error = regexp.Compile(value)
+				if error != nil {
+					log.Error().Str("plugin_name", filterDefinition.Name).Err(error).Msg("Error compiling the filter url matcher regex")
+				}
 			} else {
 				log.Error().Err(err).Str("file", fileName).Str("field", "pathPattern").Msg("Error on JS filter definition - parseFilterObject")
 			}
@@ -394,7 +363,7 @@ func parseFilterObject(jsFilterFunctions map[string]string) []JsFilterModel {
 			log.Error().Err(err).Str("file", fileName).Str("field", "function").Msg("Error on JS filter definition - parseFilterObject")
 		}
 
-		filterMoldels = append(filterMoldels, filterDefinition)
+		filterModels = append(filterModels, filterDefinition)
 	}
-	return filterMoldels
+	return filterModels
 }

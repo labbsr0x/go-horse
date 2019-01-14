@@ -1,6 +1,7 @@
 package util
 
 import (
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"os"
 	"strings"
 
@@ -33,10 +34,21 @@ func RequestScopeList(ctx iris.Context) map[string]string {
 	return values
 }
 
+func SetFilterContextValues(ctx iris.Context) {
+	setEnvVars(ctx)
+	setConfigVars(ctx)
+}
+
 // SetEnvVars SetEnvVars
-func SetEnvVars(ctx iris.Context) {
+func setEnvVars(ctx iris.Context) {
 	for _, env := range os.Environ() {
 		pair := strings.Split(env, "=")
 		ctx.Values().Set("ENV_"+pair[0], pair[1])
 	}
+}
+
+func setConfigVars(ctx iris.Context) {
+	ctx.Values().Set("CONFIG_VERSION", config.Version)
+	ctx.Values().Set("CONFIG_GIT_COMMIT", config.GitCommit)
+	ctx.Values().Set("CONFIG_BUILD_TIME", config.Version)
 }

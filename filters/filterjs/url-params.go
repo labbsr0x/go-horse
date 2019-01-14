@@ -1,4 +1,4 @@
-package filters
+package filterjs
 
 import (
 	"github.com/kataras/iris"

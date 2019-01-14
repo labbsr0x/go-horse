@@ -1,4 +1,4 @@
-package filters
+package filterjs
 
 import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"

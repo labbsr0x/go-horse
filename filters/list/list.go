@@ -2,6 +2,8 @@ package list
 
 import (
 	"fmt"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filtergo"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filterjs"
 
 	"sort"
 	"sync"
@@ -10,25 +12,22 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/model"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/radovskyb/watcher"
 	"github.com/rs/zerolog/log"
 )
 
-// All lero lero
+// All requests and response filters
 var all []model.Filter
 
-// Request lero lero
+// Request requests filters
 var request []model.Filter
 
-// Response lero lero
+// Response response filters
 var response []model.Filter
 
 var updateLock = sync.WaitGroup{}
 var isUpdating = false
-
-var dirWatcher *watcher.Watcher
 
 // RequestFilters lero lero
 func RequestFilters() []model.Filter {
@@ -60,7 +59,7 @@ func init() {
 
 // Reload Reload
 func Reload() {
-	dirWatcher = createDirWatcher()
+	createDirWatcher()
 	Load()
 }
 
@@ -71,10 +70,10 @@ func Load() {
 	request = request[:0]
 	response = response[:0]
 
-	jsFilters := filters.Load()
+	jsFilters := filterjs.Load()
 	goFilters := plugins.Load()
-	for _, jsfilter := range jsFilters {
-		filter := model.NewFilterJS(jsfilter)
+	for _, jsFilter := range jsFilters {
+		filter := filterjs.NewFilterJS(jsFilter)
 		all = append(all, filter)
 		if filter.Config().Invoke == model.Request {
 			request = append(request, filter)
@@ -82,8 +81,8 @@ func Load() {
 			response = append(response, filter)
 		}
 	}
-	for _, gofilter := range goFilters {
-		filter := model.NewFilterGO(gofilter)
+	for _, goFilter := range goFilters {
+		filter := filtergo.NewFilterGO(goFilter)
 		all = append(all, filter)
 		if filter.Config().Invoke == model.Request {
 			request = append(request, filter)
@@ -116,31 +115,31 @@ func validateFilterOrder(models []model.Filter) {
 }
 
 func createDirWatcher() *watcher.Watcher {
-	var watcher = watcher.New()
+	var dirWatcher = watcher.New()
 
 	go func() {
 		for {
 			select {
-			case event := <-watcher.Event:
+			case event := <-dirWatcher.Event:
 				updateFilters()
 				log.Warn().Msg(fmt.Sprintf("Filters definition updated : %#v", event))
-			case err := <-watcher.Error:
+			case err := <-dirWatcher.Error:
 				log.Error().Err(err).Msg("DirWatcher error")
-			case <-watcher.Closed:
+			case <-dirWatcher.Closed:
 				return
 			}
 		}
 	}()
 
-	if err := watcher.AddRecursive(config.JsFiltersPath); err != nil {
+	if err := dirWatcher.AddRecursive(config.JsFiltersPath); err != nil {
 		log.Error().Err(err).Msg("DirWatcher error")
 	}
 
 	go func() {
-		if err := watcher.Start(time.Second); err != nil {
+		if err := dirWatcher.Start(time.Second); err != nil {
 			log.Error().Err(err).Msg("DirWatcher error")
 		}
 	}()
 
-	return watcher
+	return dirWatcher
 }
