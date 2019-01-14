@@ -126,7 +126,6 @@ func ProxyHandler(ctx iris.Context) {
 	ctx.StatusCode(fixZeroStatus(result, response))
 	ctx.ContentType("application/json")
 	ctx.WriteString(ctx.Values().GetString("responseBody"))
-	fmt.Println(ctx.Values().GetString("responseBody"))
 }
 
 func fixZeroStatus(result model.FilterReturn, response *http.Response) int {
