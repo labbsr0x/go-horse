@@ -21,8 +21,6 @@ import (
 var sockClient = sockclient.Get(config.DockerSockURL)
 var dockerCli *client.Client
 
-var waitChannel = make(chan int)
-
 func init() {
 	var err error
 	dockerCli, err = client.NewClientWithOpts(client.WithVersion(config.DockerAPIVersion), client.WithHost(config.DockerSockURL))
@@ -109,7 +107,9 @@ func ProxyHandler(ctx iris.Context) {
 	}
 
 	for key, value := range response.Header {
-		ctx.Header(key, value[0])
+		if key != "Content-Length" {
+			ctx.Header(key, value[0])
+		}
 	}
 
 	ctx.Values().Set("responseBody", string(responseBody))
@@ -126,7 +126,7 @@ func ProxyHandler(ctx iris.Context) {
 	ctx.StatusCode(fixZeroStatus(result, response))
 	ctx.ContentType("application/json")
 	ctx.WriteString(ctx.Values().GetString("responseBody"))
-
+	fmt.Println(ctx.Values().GetString("responseBody"))
 }
 
 func fixZeroStatus(result model.FilterReturn, response *http.Response) int {

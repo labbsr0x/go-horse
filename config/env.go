@@ -31,6 +31,16 @@ var JsFiltersPath = defaultValue("JS_FILTERS_PATH", "/app/go-horse/filters")
 // GoPluginsPath GoPluginsPath
 var GoPluginsPath = defaultValue("GO_PLUGINS_PATH", "/app/go-horse/plugins")
 
+// SetJsFiltersPath SetJsFiltersPath for e2e tests
+func SetJsFiltersPath(path string) {
+	JsFiltersPath = path
+}
+
+// SetGoPluginsPath SetGoPluginsPath for e2e tests
+func SetGoPluginsPath(path string) {
+	GoPluginsPath = path
+}
+
 // SetPort helper function to change port for e2e tests
 func SetPort(port string) {
 	Port = fixPortValue(port)

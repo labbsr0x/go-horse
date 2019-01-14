@@ -5,9 +5,10 @@ import (
 	"github.com/kataras/iris"
 )
 
+// ActiveFiltersHandler ActiveFiltersHandler
 func ActiveFiltersHandler(ctx iris.Context) {
 	_, _ = ctx.JSON(iris.Map{
-		"request":  list.Request,
-		"response": list.Response,
+		"request":  list.RequestFilters(),
+		"response": list.ResponseFilters(),
 	})
 }
