@@ -238,7 +238,7 @@ func TestGoHorseOneResponseFilterRewritePsCommandBody(t *testing.T) {
 	Convey("go horse : one active filter -> rewriting docker ps daemon response body", t, func() {
 		er := removeContents(config.JsFiltersPath)
 		So(er, ShouldBeNil)
-		er = copy("jsFilters/000.response.plugin_sample.js", config.JsFiltersPath+"/000.response.plugin_sample.js")
+		er = copy("jsFilters/000.response.rewrite_body_ps_command.js", config.JsFiltersPath+"/000.response.rewrite_body_ps_command.js")
 		So(er, ShouldBeNil)
 		time.Sleep(time.Second) // DirWatcher interval : 1 second loop
 		response, err := http.Get("http://localhost:7070/active-filters")
@@ -253,7 +253,7 @@ func TestGoHorseOneResponseFilterRewritePsCommandBody(t *testing.T) {
 		responseFilters := gjson.Get(json, "response")
 		resultPS := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "ps")
 		So(requestFilters.Raw, ShouldBeIn, []string{"null", "[]"})
-		So(responseFilters.Raw, ShouldStartWith, "[{\"Name\":\"plugin_sample\",\"Order\":0,\"PathPattern\":\"containers/json")
+		So(responseFilters.Raw, ShouldStartWith, "[{\"Name\":\"rewrite_body_ps_command\",\"Order\":0,\"PathPattern\":\"containers/json")
 		So(resultPS.ExitCode, ShouldEqual, 0)
 		So(strings.TrimSpace(resultPS.Stdout()), ShouldContainSubstring, "go-horse")
 		So(strings.TrimSpace(resultPS.Stdout()), ShouldContainSubstring, "go-horse.sh")
@@ -261,6 +261,35 @@ func TestGoHorseOneResponseFilterRewritePsCommandBody(t *testing.T) {
 		So(strings.TrimSpace(resultPS.Stdout()), ShouldContainSubstring, "go-horse-name")
 		So(strings.TrimSpace(resultPS.Stdout()), ShouldContainSubstring, "About a go-horse ago")
 		removeContents(config.JsFiltersPath)
+	})
+}
+
+func TestGoHorseFilterScope(t *testing.T) {
+	Convey("go horse : 2 active filters -> one filter sets a variable and change a container label, another filter reads and verify that variable stored in request scope", t, func() {
+		er := removeContents(config.JsFiltersPath)
+		So(er, ShouldBeNil)
+		er = copy("jsFilters/000.request.setVar.js", config.JsFiltersPath+"/000.request.setVar.js")
+		er = copy("jsFilters/000.response.getVar.js", config.JsFiltersPath+"/000.response.getVar.js")
+		time.Sleep(time.Second)
+
+		resultRun := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "-d", "--label", "test_label=go-horse-label", "redis")
+		So(resultRun.ExitCode, ShouldEqual, 0)
+		containerID := strings.TrimSpace(resultRun.Stdout())
+
+		resultInspect := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "inspect", containerID)
+		So(resultInspect.ExitCode, ShouldEqual, 0)
+		So(resultInspect.Stdout(), ShouldContainSubstring, "go-horse-label_edited_by_filter_set_var")
+
+		resultRM := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "rm", "-f", containerID)
+		So(strings.TrimSpace(resultRM.Stdout()), ShouldEqual, containerID)
+		So(resultRM.ExitCode, ShouldEqual, 0)
+		removeContents(config.JsFiltersPath)
+	})
+}
+
+func TestGoHorseGolangFilter(t *testing.T) {
+	Convey("go horse : Golang filter", t, func() {
+
 	})
 }
 

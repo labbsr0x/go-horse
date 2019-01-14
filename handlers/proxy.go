@@ -1,15 +1,17 @@
 package handlers
 
 import (
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
+
 	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/client"
