@@ -214,20 +214,22 @@ Besides Javascript, you can also create your filters using GoLang. If you don't 
 ##### 4.1. Go filter interface
 
 ```go
-type Filter interface {
-	Config() (Name string, Order int, PathPattern string, Invoke int)
-	Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error)
+type GoFilterDefinition interface {
+	Config() model.FilterConfig
+	Exec(ctx iris.Context, requestBody string) (model.FilterReturn, error)
 }
 ```
 Your go filters have to implement those functions.
 
 The `Config` method tells go-horse information about yout filter. Same rules as [ JavaScript filters ](#js_filter).
 
-Operation => 0 = Read<br/>Operation => 1 = Write
+Operation => model.Read<br />
+Operation => model.Write
 
 The `Exec` method, runs when a request hits go-horse and his url match the `Config.PathPattern` attribute.
 
-Invoke => 0 = Response<br/>Invoke => 1 = Request
+Invoke => model.Request<br/>
+Invoke => model.Response
 
 <a name="go_sample"/>
 
@@ -236,11 +238,13 @@ Invoke => 0 = Response<br/>Invoke => 1 = Request
 
 Create a go file named *sample_filter.go* .
 
-``` go
+```go
 package main
 
 import (
 	"fmt"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/kataras/iris"
 )
 
@@ -248,27 +252,25 @@ func main() {}
 
 // PluginModel PluginModel
 type PluginModel struct {
-	Next      bool
-	Body      string
-	Status    int
-	Operation int
+	model.FilterConfig
 }
 
-// Filter Filter
-type Filter interface {
-	Config() (Name string, Order int, PathPattern string, Invoke int)
-	Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error)
+// GoFilterDefinition 
+// You don't need it in your plugin filter, it's just 
+type GoFilterDefinition interface {
+	Config() model.FilterConfig
+	Exec(ctx iris.Context, requestBody string) (model.FilterReturn, error)
 }
 
 // Exec Exec
-func (filter PluginModel) Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error) {
+func (filter PluginModel) Exec(ctx iris.Context, requestBody string) (model.FilterReturn, error) {
 	fmt.Println(">>> body response from docker daemon >>> ", requestBody)
-	return true, "newBody: i'm sure almost everyBody needs one", 500, 1, nil
+	return model.FilterReturn{Next: true, Body: "newBody: i'm sure almost everyBody needs one", Status: 500, Operation: model.Write}, nil
 }
 
 // Config Config
-func (filter PluginModel) Config() (Name string, Order int, PathPattern string, Invoke int) {
-	return "GO_FILTER", 0, ".*", 0
+func (filter PluginModel) Config() model.FilterConfig {
+	return model.FilterConfig{Name: "GO_FILTER", Order: 0, PathPattern: ".*", Invoke: model.Response}
 }
 
 // Plugin exported as symbol
@@ -321,7 +323,7 @@ Cool? Let's create another one, this time we will not return an error to docker 
 
 Now we are gonna reverse the container's name and add a label during its creation.
 
-``` go
+```go
 package main
 
 import (
