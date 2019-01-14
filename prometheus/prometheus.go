@@ -32,9 +32,6 @@ func GetMetrics() *MetricsPrometheus {
 	return metrics
 }
 
-// New returns a new prometheus middleware.
-//
-// If buckets are empty then `DefaultBuckets` are setted.
 func registerMetrics(p *MetricsPrometheus) {
 	constLabels := prometheus.Labels{"service": name, "service_version": config.Version}
 	p.reqCount = prometheus.NewCounterVec(
@@ -86,6 +83,7 @@ func registerMetrics(p *MetricsPrometheus) {
 	prometheus.MustRegister(p.FilterLatency)
 }
 
+//ServeHTTP returns a new prometheus middleware func.
 func (p *MetricsPrometheus) ServeHTTP(ctx context.Context) {
 	if ctx.Request().URL.Path == "/metrics" || ctx.Request().URL.Path == "/favicon.ico" {
 		ctx.Next()
