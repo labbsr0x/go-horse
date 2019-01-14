@@ -18,23 +18,25 @@ import (
 )
 
 // All lero lero
-var All []model.Filter
+var all []model.Filter
 
 // Request lero lero
-var Request []model.Filter
+var request []model.Filter
 
 // Response lero lero
-var Response []model.Filter
+var response []model.Filter
 
 var updateLock = sync.WaitGroup{}
 var isUpdating = false
+
+var dirWatcher *watcher.Watcher
 
 // RequestFilters lero lero
 func RequestFilters() []model.Filter {
 	if isUpdating {
 		updateLock.Wait()
 	}
-	return Request
+	return request
 }
 
 // ResponseFilters lero lero
@@ -42,7 +44,7 @@ func ResponseFilters() []model.Filter {
 	if isUpdating {
 		updateLock.Wait()
 	}
-	return Response
+	return response
 }
 
 func updateFilters() {
@@ -54,40 +56,45 @@ func updateFilters() {
 }
 
 func init() {
-	dirWatcher()
+	Reload()
+}
+
+// Reload Reload
+func Reload() {
+	dirWatcher = createDirWatcher()
 	Load()
 }
 
-// Load lero-lero
+// Load Load
 func Load() {
 
-	All = All[:0]
-	Request = Request[:0]
-	Response = Response[:0]
+	all = all[:0]
+	request = request[:0]
+	response = response[:0]
 
 	jsFilters := filterjs.Load()
 	goFilters := plugins.Load()
-	for _, jsFilter := range jsFilters {
-		filter := filterjs.NewFilterJS(jsFilter)
+	for _, jsfilter := range jsFilters {
+		filter := model.NewFilterJS(jsfilter)
 		All = append(All, filter)
 		if filter.Config().Invoke == model.Request {
-			Request = append(Request, filter)
+			request = append(request, filter)
 		} else {
-			Response = append(Response, filter)
+			response = append(response, filter)
 		}
 	}
-	for _, goFilter := range goFilters {
-		filter := filtergo.NewFilterGO(goFilter)
+	for _, gofilter := range goFilters {
+		filter := model.NewFilterGO(gofilter)
 		All = append(All, filter)
 		if filter.Config().Invoke == model.Request {
-			Request = append(Request, filter)
+			request = append(request, filter)
 		} else {
-			Response = append(Response, filter)
+			response = append(response, filter)
 		}
 	}
-	validateFilterOrder(Request)
-	validateFilterOrder(Response)
-	orderFilterModels(All, Request, Response)
+	validateFilterOrder(request)
+	validateFilterOrder(response)
+	orderFilterModels(all, request, response)
 }
 
 func orderFilterModels(models ...[]model.Filter) {
@@ -109,30 +116,32 @@ func validateFilterOrder(models []model.Filter) {
 	}
 }
 
-func dirWatcher() {
-	dirWatcher := watcher.New()
+func createDirWatcher() *watcher.Watcher {
+	var watcher = watcher.New()
 
 	go func() {
 		for {
 			select {
-			case event := <-dirWatcher.Event:
-				log.Warn().Msg(fmt.Sprintf("Filters definition updated : %#v", event))
+			case event := <-watcher.Event:
 				updateFilters()
-			case err := <-dirWatcher.Error:
+				log.Warn().Msg(fmt.Sprintf("Filters definition updated : %#v", event))
+			case err := <-watcher.Error:
 				log.Error().Err(err).Msg("DirWatcher error")
-			case <-dirWatcher.Closed:
+			case <-watcher.Closed:
 				return
 			}
 		}
 	}()
 
-	if err := dirWatcher.AddRecursive(config.JsFiltersPath); err != nil {
+	if err := watcher.AddRecursive(config.JsFiltersPath); err != nil {
 		log.Error().Err(err).Msg("DirWatcher error")
 	}
 
 	go func() {
-		if err := dirWatcher.Start(time.Second); err != nil {
+		if err := watcher.Start(time.Second); err != nil {
 			log.Error().Err(err).Msg("DirWatcher error")
 		}
 	}()
+
+	return watcher
 }

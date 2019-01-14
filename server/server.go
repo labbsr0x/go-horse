@@ -20,26 +20,26 @@ func GoHorse() *iris.Application {
 	app := iris.New()
 	app.Use(recover.New())
 
+	app.Get("/active-filters", handlers.ActiveFiltersHandler)
+
 	//TODO mapear rota para receber token ou nao
 	authToken := app.Party("/token/{token:string}/")
 	authToken.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AttachHandler)
-	authToken.Get("/{version:string}/containers/{containerId:string}/logs", handlers.LogsHandler)
-	authToken.Get("/{version:string}/services/{containerId:string}/logs", handlers.LogsHandler)
+	authToken.Get("/{version:string}/containers/{id:string}/logs", handlers.LogsHandler).Name = "container-logs"
+	authToken.Get("/{version:string}/services/{id:string}/logs", handlers.LogsHandler).Name = "service-logs"
 	authToken.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
 	authToken.Post("/{version:string}/exec/{execInstanceId:string}/start", handlers.ExecHandler)
 	authToken.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
 	authToken.Get("/{version:string}/events", handlers.EventsHandler)
 
 	app.Post("/{version:string}/containers/{containerId:string}/attach", handlers.AttachHandler)
-	app.Get("/{version:string}/containers/{containerId:string}/logs", handlers.LogsHandler)
-	app.Get("/{version:string}/services/{containerId:string}/logs", handlers.LogsHandler)
+	app.Get("/{version:string}/containers/{id:string}/logs", handlers.LogsHandler).Name = "container-logs"
+	app.Get("/{version:string}/services/{id:string}/logs", handlers.LogsHandler).Name = "service-logs"
 	app.Post("/{version:string}/containers/{containerId:string}/wait", handlers.WaitHandler)
 	app.Post("/{version:string}/exec/{execInstanceId:string}/start", handlers.ExecHandler)
 	app.Get("/{version:string}/containers/{containerId:string}/stats", handlers.StatsHandler)
 	app.Get("/{version:string}/events", handlers.EventsHandler)
 	app.Any("*", handlers.ProxyHandler)
-
-	app.Get("/active-filters", handlers.ActiveFiltersHandler)
 
 	app.Run(iris.Addr(config.Port), iris.WithoutStartupLog)
 	return app

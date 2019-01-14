@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"fmt"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 	"time"
@@ -39,16 +38,22 @@ func LogsHandler(ctx iris.Context) {
 		Details:    util.GetRequestParameter(params, "details") == "1",
 	}
 
-	responseBody, err := dockerCli.ContainerLogs(context, ctx.Params().Get("containerId"), options)
+	var responseBody io.ReadCloser
+
+	if ctx.GetCurrentRoute().Name() == "container-logs" {
+		responseBody, err = dockerCli.ContainerLogs(context, ctx.Params().Get("id"), options)
+	} else {
+		responseBody, err = dockerCli.ServiceLogs(context, ctx.Params().Get("id"), options)
+	}
+
 	defer responseBody.Close()
 
 	writer := ctx.ResponseWriter()
-	ctx.ResetResponseWriter(writer)
-
 	if err != nil {
 		writer.WriteString(err.Error())
 		return
 	}
+
 	var nr int
 
 	for {
@@ -63,7 +68,8 @@ func LogsHandler(ctx iris.Context) {
 			break
 		}
 		if er != nil {
-			fmt.Println(0, er)
+			writer.Write(buf)
+			break
 		}
 		writer.Write(buf)
 	}
