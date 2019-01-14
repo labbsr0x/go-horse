@@ -251,12 +251,10 @@ import (
 func main() {}
 
 // PluginModel PluginModel
-type PluginModel struct {
-	model.FilterConfig
-}
+type PluginModel struct {}
 
 // GoFilterDefinition 
-// You don't need it in your plugin filter, it's just 
+// You don't need it in your plugin filter, it's just to show you what interface are you implementing.
 type GoFilterDefinition interface {
 	Config() model.FilterConfig
 	Exec(ctx iris.Context, requestBody string) (model.FilterReturn, error)
@@ -327,45 +325,38 @@ Now we are gonna reverse the container's name and add a label during its creatio
 package main
 
 import (
-	"strings"
+	"fmt"
 
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/kataras/iris"
 	"github.com/tidwall/sjson"
 )
 
 // PluginModel PluginModel
-type PluginModel struct {
-	Next      bool
-	Body      string
-	Status    int
-	Operation int
-}
-
-// Filter Filter
-type Filter interface {
-	Config() (Name string, Order int, PathPattern string, Invoke int)
-	Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error)
-}
+type PluginModel struct{}
 
 // Exec Exec
-func (filter PluginModel) Exec(ctx iris.Context, requestBody string) (Next bool, Body string, Status int, Operation int, Err error) {
-	containerName := strings.Split(ctx.Values().GetString("path"), "?name=")
-	containerNameReversed := Reverse(containerName[1])
-	ctx.Values().Set("path", containerName[0]+"?name="+containerNameReversed)
+func (filter PluginModel) Exec(ctx iris.Context, requestBody string) (model.FilterReturn, error) {
+	q := ctx.Request().URL.Query()
+	containerName := q.Get("name")
+	containerNameReversed := reverse(containerName)
+	q.Set("name", containerNameReversed)
+	ctx.Request().URL.RawQuery = q.Encode()
 	value, _ := sjson.Set(requestBody, "Labels", map[string]interface{}{"pass-through": "Go-Horse"})
-	return true, value, 200, 1, nil
+	return model.FilterReturn{Next: true, Body: value, Status: 200, Operation: model.Write}, nil
 }
 
 // Config Config
-func (filter PluginModel) Config() (Name string, Order int, PathPattern string, Invoke int) {
-	return "GO_FILTER_CONTAINER_CREATE_ADD_LABEL", 0, "/containers/create", 1
+func (filter PluginModel) Config() model.FilterConfig {
+	return model.FilterConfig{Name: "GO_FILTER_CONTAINER_CREATE_ADD_LABEL", Order: 0, PathPattern: "/containers/create", Invoke: model.Request}
 }
 
 // Plugin exported as symbol
 var Plugin PluginModel
 
 // Reverse Reverse
-func Reverse(s string) string {
+func reverse(s string) string {
+	fmt.Println(s)
 	runes := []rune(s)
 	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
 		runes[i], runes[j] = runes[j], runes[i]
