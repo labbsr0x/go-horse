@@ -16,6 +16,7 @@ import (
 type MetricsPrometheus struct {
 	reqCount      *prometheus.CounterVec
 	reqLatency    *prometheus.HistogramVec
+	reqInFlight   *prometheus.GaugeVec
 	FilterCount   *prometheus.CounterVec
 	FilterLatency *prometheus.HistogramVec
 }
@@ -53,8 +54,16 @@ func registerMetrics(p *MetricsPrometheus) {
 	},
 		[]string{"code", "method", "path"},
 	)
-
 	prometheus.MustRegister(p.reqLatency)
+
+	p.reqInFlight = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        "http_requests_in_flight_total",
+		Help:        "How many requests are being processed, partitioned method and HTTP path.",
+		ConstLabels: constLabels,
+	},
+		[]string{"method", "path"},
+	)
+	prometheus.MustRegister(p.reqInFlight)
 
 	p.FilterCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -83,14 +92,19 @@ func (p *MetricsPrometheus) ServeHTTP(ctx context.Context) {
 		return
 	}
 	start := time.Now()
-	ctx.Next()
-	r := ctx.Request()
-	statusCode := strconv.Itoa(ctx.GetStatusCode())
 	path := ctx.GetCurrentRoute().Path()
+	r := ctx.Request()
+
+	p.reqInFlight.WithLabelValues(r.Method, path).Inc()
+
+	ctx.Next()
+
+	p.reqInFlight.WithLabelValues(r.Method, path).Dec()
+
+	statusCode := strconv.Itoa(ctx.GetStatusCode())
 
 	p.reqCount.WithLabelValues(statusCode, r.Method, path).
 		Inc()
-
 	p.reqLatency.WithLabelValues(statusCode, r.Method, path).
 		Observe(float64(time.Since(start).Seconds()) / 1000000000)
 }

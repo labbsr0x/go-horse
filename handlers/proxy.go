@@ -38,7 +38,7 @@ func init() {
 // ProxyHandler lero-lero
 func ProxyHandler(ctx iris.Context) {
 
-	log.Info().Str("request", ctx.String()).Msg("Receiving request")
+	log.Info().Str("request", ctx.String()).Msg("Receiving")
 
 	util.SetFilterContextValues(ctx)
 
