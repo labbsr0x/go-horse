@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"os"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
@@ -19,8 +21,10 @@ func GoHorse() *iris.Application {
 
 	app := iris.New()
 	app.Use(recover.New())
+	app.Use(prometheus.GetMetrics().ServeHTTP)
 
 	app.Get("/active-filters", handlers.ActiveFiltersHandler)
+	app.Get("/metrics", iris.FromStd(promhttp.Handler()))
 
 	//TODO mapear rota para receber token ou nao
 	authToken := app.Party("/token/{token:string}/")
