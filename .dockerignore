@@ -1,0 +1,11 @@
+# General
+.git
+.dockerignore
+Dockerfile
+*.DS_Store
+
+# Environments
+.env
+
+# IDE
+.idea/
