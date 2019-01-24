@@ -97,7 +97,7 @@ func (filterJs FilterJS) Exec(ctx iris.Context, body string) (model.FilterReturn
 	ctxJsObj.Set("request", httpRequestTOJSContext)
 	ctxJsObj.Set("values", valuesJsObj)
 	ctxJsObj.Set("urlParams", urlParamsJsObj)
-	ctxJsObj.Set("responseStatusCode", ctx.FormValue("responseStatusCode"))
+	ctxJsObj.Set("responseStatusCode", ctx.Values().GetString("responseStatusCode"))
 
 	js.Set("ctx", ctxJsObj)
 
