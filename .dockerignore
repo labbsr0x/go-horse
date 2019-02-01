@@ -1,5 +1,4 @@
 # General
-.git
 .dockerignore
 Dockerfile
 *.DS_Store
