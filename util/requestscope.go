@@ -50,5 +50,5 @@ func setEnvVars(ctx iris.Context) {
 func setConfigVars(ctx iris.Context) {
 	ctx.Values().Set("CONFIG_VERSION", config.Version)
 	ctx.Values().Set("CONFIG_GIT_COMMIT", config.GitCommit)
-	ctx.Values().Set("CONFIG_BUILD_TIME", config.Version)
+	ctx.Values().Set("CONFIG_BUILD_TIME", config.BuildTime)
 }
