@@ -3,6 +3,7 @@ package util
 import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/kataras/iris"
@@ -51,4 +52,7 @@ func setConfigVars(ctx iris.Context) {
 	ctx.Values().Set("CONFIG_VERSION", config.Version)
 	ctx.Values().Set("CONFIG_GIT_COMMIT", config.GitCommit)
 	ctx.Values().Set("CONFIG_BUILD_TIME", config.BuildTime)
+	ctx.Values().Set("CONFIG_GO_VERSION", runtime.Version())
+	ctx.Values().Set("CONFIG_OS", runtime.GOOS)
+	ctx.Values().Set("CONFIG_ARCH", runtime.GOARCH)
 }
