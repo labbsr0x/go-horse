@@ -7,7 +7,7 @@ services:
     image: go-horse
     network_mode: bridge
     ports: 
-      - 7070:8080
+      - 8080:8080
     environment: 
       - DOCKER_API_VERSION=1.39
       - DOCKER_SOCK=unix:///var/run/docker.sock
