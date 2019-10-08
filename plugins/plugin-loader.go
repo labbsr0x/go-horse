@@ -1,7 +1,6 @@
 package plugins
 
 import (
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"

@@ -10,7 +10,6 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 
 	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"

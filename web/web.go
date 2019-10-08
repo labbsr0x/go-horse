@@ -1,12 +1,12 @@
-package server
+package web
 
 import (
 	"context"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"os"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/handlers"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/recover"
@@ -14,10 +14,27 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// GoHorse GoHorse
-func GoHorse() *iris.Application {
+// Server holds the information needed to run Whisper
+type Server struct {
+	*config.WebBuilder
+}
 
-	logSetup()
+// InitFromWebBuilder builds a Server instance
+func (s *Server) InitFromWebBuilder(webBuilder *config.WebBuilder) *Server {
+	s.WebBuilder = webBuilder
+	logLevel, err := logrus.ParseLevel(s.LogLevel)
+	if err != nil {
+		logrus.Errorf("Not able to parse log level string. Setting default level: info.")
+		logLevel = logrus.InfoLevel
+	}
+	logrus.SetLevel(logLevel)
+
+	return s
+}
+
+
+// Run initializes the web server and its apis
+func (s *Server) Run() *iris.Application {
 
 	app := iris.New()
 	app.Use(recover.New())
@@ -45,8 +62,7 @@ func GoHorse() *iris.Application {
 	app.Get("/{version:string}/events", handlers.EventsHandler)
 	app.Any("*", handlers.ProxyHandler)
 
-	app.Run(iris.Addr(config.Port), iris.WithoutStartupLog)
-	return app
+	return app.Run(iris.Addr(config.Port), iris.WithoutStartupLog)
 }
 
 // Restart Restart

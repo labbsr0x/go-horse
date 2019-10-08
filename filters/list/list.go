@@ -11,7 +11,6 @@ import (
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/radovskyb/watcher"
 	"github.com/rs/zerolog/log"

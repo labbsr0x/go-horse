@@ -19,5 +19,5 @@ func init() {
 
 func main() {
 	log.Info().Str("version", config.Version).Str("buildTime", config.BuildTime).Str("Commit", config.GitCommit).Msg("Version information")
-	server.GoHorse()
+	cmd.Execute()
 }
