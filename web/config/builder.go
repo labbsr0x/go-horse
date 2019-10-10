@@ -46,13 +46,13 @@ type WebBuilder struct {
 // TODO : Discuss shortchut name
 func AddFlags(flags *pflag.FlagSet) {
 	flags.StringP(dockerAPIVersion, "v", "1.39", "Version of Docker API")
-	flags.StringP(dockerSockURL, "u", "unix:///var/run/docker.sock", "URL of Docker Socket")
-	flags.StringP(targetHostName, "n", "http://go-horse", "Target host name")
+	flags.StringP(dockerSockURL, "u", "", "URL of Docker Socket")
+	flags.StringP(targetHostName, "n", "", "Target host name")
 	flags.StringP(logLevel, "l", "info", "[optional] Sets the Log Level to one of seven (trace, debug, info, warn, error, fatal, panic). Defaults to info")
 	flags.BoolP(prettyLog, "t", false, "Enable or disable pretty log. Defaults to false")
 	flags.StringP(port, "p", ":8080", "Go Horse port. Defaults to :8080")
-	flags.StringP(jsFiltersPath, "j", "/app/go-horse/filters", "Sets the path to json filters")
-	flags.StringP(goPluginsPath, "g", "/app/go-horse/plugins", "Sets the path to go plugins")
+	flags.StringP(jsFiltersPath, "j", "", "Sets the path to json filters")
+	flags.StringP(goPluginsPath, "g", "", "Sets the path to go plugins")
 }
 
 // InitFromWebBuilder initializes the web server builder with properties retrieved from Viper.
@@ -81,20 +81,14 @@ func (flags *Flags) check() {
 
 	logrus.Infof("Flags: '%v'", flags)
 
-	haveEmptyRequiredFlags := flags.DockerAPIVersion == "" ||
-		flags.DockerSockURL == "" ||
+	haveEmptyRequiredFlags := flags.DockerSockURL == "" ||
 		flags.TargetHostName == "" ||
-		flags.LogLevel == "" ||
-		flags.Port == "" ||
 		flags.JsFiltersPath == "" ||
 		flags.GoPluginsPath == ""
 
 	requiredFlagsNames := []string{
-		dockerAPIVersion,
 		dockerSockURL,
 		targetHostName,
-		prettyLog,
-		port,
 		jsFiltersPath,
 		goPluginsPath,
 	}
