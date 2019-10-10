@@ -1,4 +1,4 @@
-package server
+package cmd
 
 import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web"
@@ -12,24 +12,16 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Starts the HTTP REST APIs server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-
-		builder := new(config.WebBuilder).Init(viper.GetViper(), mailChannel)
-
-		server := new(web.Server).InitFromWebBuilder(builder)
-
-		err = server.Run()
-		if err != nil {
-			return err
-		}
-
-		return nil
+		webBuilder := new(config.WebBuilder).InitFromViper(viper.GetViper())
+		server := new(web.Server).InitFromWebBuilder(webBuilder)
+		return server.Run()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
 
-	//config.AddFlags(serveCmd.Flags())
+	config.AddFlags(serveCmd.Flags())
 
 	err := viper.GetViper().BindPFlags(serveCmd.Flags())
 	if err != nil {

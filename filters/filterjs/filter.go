@@ -3,20 +3,21 @@ package filterjs
 import (
 	"encoding/json"
 	"fmt"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
+
 	"github.com/kataras/iris/core/errors"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"github.com/robertkrimen/otto"
 )
 

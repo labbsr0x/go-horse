@@ -9,7 +9,7 @@ import (
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
-
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 
 	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
@@ -26,6 +26,20 @@ const (
 var sockClient = sockclient.Get(config.DockerSockURL)
 var dockerCli *client.Client
 
+type ProxyAPI interface {
+	ProxyHandler(ctx iris.Context)
+}
+
+type DefaultProxyAPI struct {
+	*config.WebBuilder
+}
+
+// InitFromWebBuilder initializes a default consent api instance from a web builder instance
+func (dapi *DefaultProxyAPI) InitFromWebBuilder(webBuilder *config.WebBuilder) *DefaultProxyAPI {
+	dapi.WebBuilder = webBuilder
+	return dapi
+}
+
 func init() {
 	var err error
 	dockerCli, err = client.NewClientWithOpts(client.WithVersion(config.DockerAPIVersion), client.WithHost(config.DockerSockURL))
@@ -35,7 +49,7 @@ func init() {
 }
 
 // ProxyHandler lero-lero
-func ProxyHandler(ctx iris.Context) {
+func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 
 	log.Info().Str("request", ctx.String()).Msg("Receiving")
 
@@ -63,7 +77,7 @@ func ProxyHandler(ctx iris.Context) {
 	u := ctx.Request().URL.ResolveReference(&url.URL{Path: ctx.Values().GetString("path"), RawQuery: ctx.Request().URL.RawQuery})
 	path := u.String()
 
-	request, newRequestError := http.NewRequest(ctx.Request().Method, config.TargetHostname+path, strings.NewReader(ctx.Values().GetString(RequestBodyKey)))
+	request, newRequestError := http.NewRequest(ctx.Request().Method, dapi.Flags.TargetHostName+path, strings.NewReader(ctx.Values().GetString(RequestBodyKey)))
 
 	if newRequestError != nil {
 		log.Error().Str("request", ctx.String()).Err(newRequestError).Msg("Error creating a new request in main handler")

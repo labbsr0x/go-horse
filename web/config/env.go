@@ -17,13 +17,13 @@ var DockerSockURL = defaultValue("DOCKER_SOCK", "unix:///var/run/docker.sock")
 var TargetHostname = defaultValue("TARGET_HOSTNAME", "http://go-horse")
 
 // LogLevel LogLevel
-var LogLevel = fixLogLevel(defaultValue("LOG_LEVEL", "debug"))
+var LogLevel = fixLogLevel(defaultValue("LOG_LEVEL", "info"))
 
 // PrettyLog PrettyLog
 var PrettyLog = defaultValueBol("PRETTY_LOG", true)
 
 // Port Port
-var Port = fixPortValue(defaultValue("PORT", ":9090"))
+var Port = fixPortValue(defaultValue("PORT", ":8080"))
 
 // JsFiltersPath JsFiltersPath
 var JsFiltersPath = defaultValue("JS_FILTERS_PATH", "/app/go-horse/filters")

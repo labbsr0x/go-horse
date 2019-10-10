@@ -3,17 +3,33 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 	"time"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/api/types/container"
 	"github.com/kataras/iris"
 )
 
+type WaitAPI interface {
+	WaitHandler(ctx iris.Context)
+}
+
+type DefaultWaitAPI struct {
+	*config.WebBuilder
+}
+
+// InitFromWebBuilder initializes a default consent api instance from a web builder instance
+func (dapi *DefaultWaitAPI) InitFromWebBuilder(webBuilder *config.WebBuilder) *DefaultWaitAPI {
+	dapi.WebBuilder = webBuilder
+	return dapi
+}
+
 // WaitHandler lero lero
-func WaitHandler(ctx iris.Context) {
+func (dapi *DefaultWaitAPI) WaitHandler(ctx iris.Context) {
 
 	util.SetFilterContextValues(ctx)
 

@@ -3,8 +3,10 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"time"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/api/types"
@@ -12,8 +14,22 @@ import (
 	"github.com/kataras/iris"
 )
 
+type EventsAPI interface {
+	EventsHandler(ctx iris.Context)
+}
+
+type DefaultEventsAPI struct {
+	*config.WebBuilder
+}
+
+// InitFromWebBuilder initializes a default consent api instance from a web builder instance
+func (dapi *DefaultEventsAPI) InitFromWebBuilder(webBuilder *config.WebBuilder) *DefaultEventsAPI {
+	dapi.WebBuilder = webBuilder
+	return dapi
+}
+
 // EventsHandler handle logs command
-func EventsHandler(ctx iris.Context) {
+func (dapi *DefaultEventsAPI) EventsHandler(ctx iris.Context) {
 
 	util.SetFilterContextValues(ctx)
 

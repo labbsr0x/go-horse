@@ -1,12 +1,14 @@
 package plugins
 
 import (
+	"io/ioutil"
+	"plugin"
+
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"
 	"github.com/rs/zerolog/log"
-	"io/ioutil"
-	"plugin"
 )
 
 // FilterPluginList filters

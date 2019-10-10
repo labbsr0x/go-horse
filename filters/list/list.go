@@ -2,6 +2,7 @@ package list
 
 import (
 	"fmt"
+
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filtergo"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filterjs"
 
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/radovskyb/watcher"

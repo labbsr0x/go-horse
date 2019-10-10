@@ -26,7 +26,7 @@ type Flags struct {
 	DockerSockURL    string
 	TargetHostName   string
 	LogLevel         string
-	PrettyLog        string // Bool or string ?
+	PrettyLog        bool // Bool or string ?
 	Port             string
 	JsFiltersPath    string
 	GoPluginsPath    string
@@ -42,21 +42,21 @@ type WebBuilder struct {
 func AddFlags(flags *pflag.FlagSet) {
 	flags.StringP(dockerAPIVersion, "v", "1.39", "Version of Docker API")
 	flags.StringP(dockerSockURL, "u", "unix:///var/run/docker.sock", "URL of Docker Socket")
-	flags.StringP(targetHostName, "h", "http://go-horse", "Target host name")
-	flags.StringP(logLevel, "l", "debug", "[optional] Sets the Log Level to one of seven (trace, debug, info, warn, error, fatal, panic). Defaults to debug")
-	flags.StringP(prettyLog, "t", "false", "Enable or disable pretty log. Defaults to false")
-	flags.StringP(port, "p", ":9090", "Go Horse port. Defaults to :9090")
+	flags.StringP(targetHostName, "n", "http://go-horse", "Target host name")
+	flags.StringP(logLevel, "l", "info", "[optional] Sets the Log Level to one of seven (trace, debug, info, warn, error, fatal, panic). Defaults to info")
+	flags.BoolP(prettyLog, "t", false, "Enable or disable pretty log. Defaults to false")
+	flags.StringP(port, "p", ":8080", "Go Horse port. Defaults to :8080")
 	flags.StringP(jsFiltersPath, "j", "/app/go-horse/filters", "Sets the path to json filters")
 	flags.StringP(goPluginsPath, "g", "/app/go-horse/plugins", "Sets the path to go plugins")
 }
 
 // InitFromWebBuilder initializes the web server builder with properties retrieved from Viper.
-func (b *WebBuilder) Init(v *viper.Viper) *WebBuilder {
+func (b *WebBuilder) InitFromViper(v *viper.Viper) *WebBuilder {
 	flags := new(Flags)
 	flags.DockerAPIVersion = v.GetString(dockerAPIVersion)
 	flags.TargetHostName = v.GetString(targetHostName)
 	flags.LogLevel = v.GetString(logLevel)
-	flags.PrettyLog = v.GetString(prettyLog)
+	flags.PrettyLog = v.GetBool(prettyLog)
 	flags.Port = v.GetString(port)
 	flags.JsFiltersPath = v.GetString(jsFiltersPath)
 	flags.GoPluginsPath = v.GetString(goPluginsPath)
@@ -75,7 +75,6 @@ func (flags *Flags) check() {
 	haveEmptyRequiredFlags := flags.DockerAPIVersion == "" ||
 		flags.TargetHostName == "" ||
 		flags.LogLevel == "" ||
-		flags.PrettyLog == "" ||
 		flags.Port == "" ||
 		flags.JsFiltersPath == "" ||
 		flags.GoPluginsPath == ""
@@ -84,7 +83,6 @@ func (flags *Flags) check() {
 		dockerAPIVersion,
 		dockerSockURL,
 		targetHostName,
-		logLevel,
 		prettyLog,
 		port,
 		jsFiltersPath,

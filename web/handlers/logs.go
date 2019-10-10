@@ -2,17 +2,33 @@ package handlers
 
 import (
 	"context"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 	"time"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
 )
 
+type LogsAPI interface {
+	LogsHandler(ctx iris.Context)
+}
+
+type DefaultLogsAPI struct {
+	*config.WebBuilder
+}
+
+// InitFromWebBuilder initializes a default consent api instance from a web builder instance
+func (dapi *DefaultLogsAPI) InitFromWebBuilder(webBuilder *config.WebBuilder) *DefaultLogsAPI {
+	dapi.WebBuilder = webBuilder
+	return dapi
+}
+
 // LogsHandler handle logs command
-func LogsHandler(ctx iris.Context) {
+func (dapi *DefaultLogsAPI) LogsHandler(ctx iris.Context) {
 
 	util.SetFilterContextValues(ctx)
 

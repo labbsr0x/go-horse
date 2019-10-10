@@ -12,27 +12,32 @@ import (
 
 	"github.com/tidwall/gjson"
 
-	"github.com/kataras/iris"
-
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/list"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/server"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 	. "github.com/smartystreets/goconvey/convey"
+	"github.com/spf13/viper"
 	"gotest.tools/icmd"
 )
 
-var app *iris.Application
+var app *web.Server
 
 func init() {
-	config.SetLogLevel("error")
-	config.SetPort(":7070")
-	jsFiltersPath, _ := filepath.Abs("./go-horse_runtime_dirs/jsFilters")
-	config.SetJsFiltersPath(jsFiltersPath)
-	jsPluginsPath, _ := filepath.Abs("./go-horse_runtime_dirs/plugins")
-	config.SetGoPluginsPath(jsPluginsPath)
+
+	os.Setenv("docker-api-version", "1.39")
+	os.Setenv("docker-sock-url", "unix:///var/run/docker.sock")
+	os.Setenv("target-host-name", "http://go-horse")
+	os.Setenv("log-level", "true")
+	os.Setenv("pretty-log", "true")
+	os.Setenv("port", ":8080")
+	os.Setenv("js-filter-path", "/app/go-horse/filters")
+	os.Setenv("go-plugins-path", "/app/go-horse/plugins")
+
 	go func() {
 		list.Reload()
-		app = server.GoHorse()
+		webBuilder := new(config.WebBuilder).InitFromViper(viper.GetViper())
+		app = new(web.Server).InitFromWebBuilder(webBuilder)
+		app.Run()
 	}()
 	SetDefaultFailureMode(FailureContinues)
 }
@@ -43,7 +48,7 @@ func init() {
 
 func TestRun(t *testing.T) {
 	Convey("docker run --name e2e-test-container -d redis", t, func() {
-		result := icmd.RunCommand("docker", "-H", "tcp://localhost:7070", "run", "--name", "e2e-test-container", "-d", "redis")
+		result := icmd.RunCommand("docker", "-H", "tcp://localhost:8080", "run", "--name", "e2e-test-container", "-d", "redis")
 		So(len(strings.TrimSpace(result.Stdout())), ShouldEqual, 64)
 		So(result.ExitCode, ShouldEqual, 0)
 	})

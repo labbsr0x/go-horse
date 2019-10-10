@@ -1,4 +1,4 @@
-package server
+package cmd
 
 import (
 	"os"
@@ -9,8 +9,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-var cfgFile string
 
 var rootCmd = &cobra.Command{
 	Use:   "Go Horse Proxy",
