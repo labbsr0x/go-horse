@@ -2,7 +2,10 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 
+	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
+	"github.com/docker/docker/client"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -35,6 +38,8 @@ type Flags struct {
 // WebBuilder defines the parametric information of a gohorse server instance
 type WebBuilder struct {
 	*Flags
+	DockerCli  *client.Client
+	SockClient *http.Client
 }
 
 // AddFlags adds flags for Builder.
@@ -52,8 +57,10 @@ func AddFlags(flags *pflag.FlagSet) {
 
 // InitFromWebBuilder initializes the web server builder with properties retrieved from Viper.
 func (b *WebBuilder) InitFromViper(v *viper.Viper) *WebBuilder {
+
 	flags := new(Flags)
 	flags.DockerAPIVersion = v.GetString(dockerAPIVersion)
+	flags.DockerSockURL = v.GetString(dockerSockURL)
 	flags.TargetHostName = v.GetString(targetHostName)
 	flags.LogLevel = v.GetString(logLevel)
 	flags.PrettyLog = v.GetBool(prettyLog)
@@ -64,6 +71,8 @@ func (b *WebBuilder) InitFromViper(v *viper.Viper) *WebBuilder {
 	flags.check()
 
 	b.Flags = flags
+	b.DockerCli = b.getDockerCli()
+	b.SockClient = b.getSocketClient()
 
 	return b
 }
@@ -73,6 +82,7 @@ func (flags *Flags) check() {
 	logrus.Infof("Flags: '%v'", flags)
 
 	haveEmptyRequiredFlags := flags.DockerAPIVersion == "" ||
+		flags.DockerSockURL == "" ||
 		flags.TargetHostName == "" ||
 		flags.LogLevel == "" ||
 		flags.Port == "" ||
@@ -96,4 +106,17 @@ func (flags *Flags) check() {
 		}
 		panic(msg)
 	}
+}
+
+func (b *WebBuilder) getDockerCli() *client.Client {
+
+	dockerCli, err := client.NewClientWithOpts(client.WithVersion(b.Flags.DockerAPIVersion), client.WithHost(b.Flags.DockerSockURL))
+	if err != nil {
+		panic(err)
+	}
+	return dockerCli
+}
+
+func (b *WebBuilder) getSocketClient() *http.Client {
+	return sockclient.Get(b.Flags.DockerSockURL)
 }

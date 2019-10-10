@@ -57,9 +57,9 @@ func (dapi *DefaultLogsAPI) LogsHandler(ctx iris.Context) {
 	var responseBody io.ReadCloser
 
 	if ctx.GetCurrentRoute().Name() == "container-logs" {
-		responseBody, err = dockerCli.ContainerLogs(context, ctx.Params().Get("id"), options)
+		responseBody, err = dapi.DockerCli.ContainerLogs(context, ctx.Params().Get("id"), options)
 	} else {
-		responseBody, err = dockerCli.ServiceLogs(context, ctx.Params().Get("id"), options)
+		responseBody, err = dapi.DockerCli.ServiceLogs(context, ctx.Params().Get("id"), options)
 	}
 
 	defer responseBody.Close()

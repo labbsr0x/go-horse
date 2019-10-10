@@ -51,7 +51,7 @@ func (dapi *DefaultAttachAPI) AttachHandler(ctx iris.Context) {
 	options.DetachKeys = util.GetRequestParameter(params, "detachKeys")
 	options.Logs = util.GetRequestParameter(params, "logs") == "1"
 
-	resp, err := dockerCli.ContainerAttach(context, ctx.Params().Get("containerId"), options)
+	resp, err := dapi.DockerCli.ContainerAttach(context, ctx.Params().Get("containerId"), options)
 
 	if err != nil {
 		log.Error().Err(err).Msg("Error executing docker client # ContainerExecAttach")

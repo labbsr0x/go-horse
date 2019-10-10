@@ -43,7 +43,7 @@ func (dapi *DefaultEventsAPI) EventsHandler(ctx iris.Context) {
 	context, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	messagesChannel, errorChannel := dockerCli.Events(context, types.EventsOptions{})
+	messagesChannel, errorChannel := dapi.DockerCli.Events(context, types.EventsOptions{})
 
 	writer := ctx.ResponseWriter()
 	ctx.ResetResponseWriter(writer)

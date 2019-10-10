@@ -11,9 +11,7 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 
-	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
-	"github.com/docker/docker/client"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 )
@@ -23,9 +21,6 @@ const (
 	ResponseBodyKey = "responseBody"
 )
 
-var sockClient = sockclient.Get(config.DockerSockURL)
-var dockerCli *client.Client
-
 type ProxyAPI interface {
 	ProxyHandler(ctx iris.Context)
 }
@@ -34,21 +29,11 @@ type DefaultProxyAPI struct {
 	*config.WebBuilder
 }
 
-// InitFromWebBuilder initializes a default consent api instance from a web builder instance
 func (dapi *DefaultProxyAPI) InitFromWebBuilder(webBuilder *config.WebBuilder) *DefaultProxyAPI {
 	dapi.WebBuilder = webBuilder
 	return dapi
 }
 
-func init() {
-	var err error
-	dockerCli, err = client.NewClientWithOpts(client.WithVersion(config.DockerAPIVersion), client.WithHost(config.DockerSockURL))
-	if err != nil {
-		panic(err)
-	}
-}
-
-// ProxyHandler lero-lero
 func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 
 	log.Info().Str("request", ctx.String()).Msg("Receiving")
@@ -89,7 +74,7 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 
 	log.Debug().Msg("Executing request for URL : " + path + " ...")
 
-	response, erre := sockClient.Do(request)
+	response, erre := dapi.SockClient.Do(request)
 
 	if erre != nil {
 		log.Error().Str("request", ctx.String()).Err(erre).Msg("Error executing the request in main handler")

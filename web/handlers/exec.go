@@ -50,7 +50,7 @@ func (dapi *DefaultExecAPI) ExecHandler(ctx iris.Context) {
 
 	context := context.Background()
 
-	resp, err := dockerCli.ContainerExecAttach(context, ctx.Params().Get("execInstanceId"), execStartCheck)
+	resp, err := dapi.DockerCli.ContainerExecAttach(context, ctx.Params().Get("execInstanceId"), execStartCheck)
 	if err != nil {
 		log.Error().Err(err).Msg("Error executing docker client # ContainerExecAttach")
 	}

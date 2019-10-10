@@ -43,7 +43,7 @@ func (dapi *DefaultStatsAPI) StatsHandler(ctx iris.Context) {
 
 	params := ctx.FormValues()
 
-	response, err := dockerCli.ContainerStats(context, ctx.Params().Get("containerId"), util.GetRequestParameter(params, "stream") == "1")
+	response, err := dapi.DockerCli.ContainerStats(context, ctx.Params().Get("containerId"), util.GetRequestParameter(params, "stream") == "1")
 
 	writer := ctx.ResponseWriter()
 	ctx.ResetResponseWriter(writer)
