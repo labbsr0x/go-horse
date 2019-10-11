@@ -19,7 +19,7 @@ const (
 	logLevel         = "log-level"
 	prettyLog        = "pretty-log"
 	port             = "port"
-	jsFiltersPath    = "js-filter-path"
+	jsFiltersPath    = "js-filters-path"
 	goPluginsPath    = "go-plugins-path"
 )
 
