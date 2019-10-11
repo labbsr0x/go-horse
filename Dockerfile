@@ -1,5 +1,5 @@
 # Start from the latest golang base image
-FROM abilioesteves/gowebbuilder:1.2.0
+FROM golang:latest
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -27,5 +27,8 @@ FROM scratch
 COPY --from=0 /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=0 /main /
 
-# Command to run the executable
-CMD ["./main"]
+# Command to set main program
+ENTRYPOINT ["./main"]
+
+# Serve command to run api
+CMD ["serve"]
