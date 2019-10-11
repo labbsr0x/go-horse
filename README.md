@@ -34,6 +34,8 @@ Docker (http) commands sent from the client to the daemon are intercepted by cre
 
 ### 2. Running
 
+#### 2.1.1 Runing with docker
+
 ```docker-compose
 version: '3.7'
 services:
@@ -43,22 +45,54 @@ services:
     ports: 
       - 8080:8080
     environment: 
-      - DOCKER_HOST=/var/run/docker.sock
-      - DOCKER_SOCK=unix:///var/run/docker.sock
-      - LOG_LEVEL=debug
-      - PRETTY_LOG=true
-      - PORT=:8080
-      - JS_FILTERS_PATH=/app/go-horse/filters
-      - GO_PLUGINS_PATH=/app/go-horse/plugins
-    volumes: 
+      - GOHORSE_DOCKER_API_VERSION=1.39
+      - GOHORSE_DOCKER_SOCK_URL=unix:///var/run/docker.sock
+      - GOHORSE_TARGET_HOST_NAME=http://go-horse
+      - GOHORSE_LOG_LEVEL=debug
+      - GOHORSE_PRETTY_LOG=true
+      - GOHORSE_PORT=:8080
+      - GOHORSE_JS_FILTERS_PATH=/app/go-horse/filters
+      - GOHORSE_GO_PLUGINS_PATH=/app/go-horse/plugins
+      - GOHORSE_TOKEN_VALIDATION_ENDPOINT=http://172.24.40.4:3000/info
+      - GOHORSE_ACL_AUTHORIZE_ENDPOINT=http://172.24.40.4:4466/warden/subjects/authorize
+    volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /home/bruno/go-horse:/app/go-horse
+      - /app/go-horse:/app/go-horse
 ```
-Set the environment variable `DOCKER_HOST` to `tcp://localhost:8080` or test a single command adding -H attribute to a docker command : `docker -H=localhost:8080 ps -a` and watch the go-horse container logs
+1. Up the service.
+
+```bash
+docker-compose up
+```
+
+#### 2.1.2 Serving locally
+
+1. Compile the local version
+
+```bash
+go build
+```
+
+2. Serve Go Horse locally
+
+```bash
+./go-horse serve \
+  --docker-api-version 1.39 \
+  --docker-sock-url unix:///var/run/docker.sock \
+  --target-host-name http://go-horse \
+  --log-level info \
+  --pretty-log true \
+  --js-filters-path /app/go-horse/filters \
+  --go-plugins-path /app/go-horse/plugins
+
+```
+
 
 <a name="envvars"/>
 
-#### 2.1. Environment variables
+#### 2.2. Environment variables
+
+Set the environment variable `DOCKER_HOST` to `tcp://localhost:8080` or test a single command adding -H attribute to a docker command : `docker -H=localhost:8080 ps -a` and watch the go-horse container logs
 
 Besides the self explanatory variables, there are : 
 
