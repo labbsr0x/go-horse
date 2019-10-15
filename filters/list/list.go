@@ -3,6 +3,7 @@ package list
 import (
 	"fmt"
 
+	filter "gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/config-filter"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filtergo"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filterjs"
 
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/radovskyb/watcher"
@@ -30,8 +30,26 @@ var response []model.Filter
 var updateLock = sync.WaitGroup{}
 var isUpdating = false
 
+type ListAPI interface {
+	Load()
+	createDirWatcher() *watcher.Watcher
+	RequestFilters() []model.Filter
+	ResponseFilters() []model.Filter
+	Init()
+	Reload()
+}
+
+type DefaultListAPI struct {
+	*filter.FilterBuilder
+}
+
+func (dapi *DefaultListAPI) InitFromFilterBuilder(filterBuilder *filter.FilterBuilder) *DefaultListAPI {
+	dapi.FilterBuilder = filterBuilder
+	return dapi
+}
+
 // RequestFilters lero lero
-func RequestFilters() []model.Filter {
+func (dapi *DefaultListAPI) RequestFilters() []model.Filter {
 	if isUpdating {
 		updateLock.Wait()
 	}
@@ -39,40 +57,41 @@ func RequestFilters() []model.Filter {
 }
 
 // ResponseFilters lero lero
-func ResponseFilters() []model.Filter {
+func (dapi *DefaultListAPI) ResponseFilters() []model.Filter {
 	if isUpdating {
 		updateLock.Wait()
 	}
 	return response
 }
 
-func updateFilters() {
+func (dapi *DefaultListAPI) updateFilters() {
 	updateLock.Add(1)
 	isUpdating = true
-	Load()
+	dapi.Load()
 	updateLock.Done()
 	isUpdating = false
 }
 
-func init() {
-	Reload()
+func (dapi *DefaultListAPI) Init() {
+	dapi.Reload()
 }
 
 // Reload Reload
-func Reload() {
-	createDirWatcher()
-	Load()
+func (dapi *DefaultListAPI) Reload() {
+	dapi.createDirWatcher()
+	dapi.Load()
 }
 
 // Load Load
-func Load() {
+func (dapi *DefaultListAPI) Load() {
 
 	all = all[:0]
 	request = request[:0]
 	response = response[:0]
 
-	jsFilters := filterjs.Load()
-	goFilters := plugins.Load()
+	jsFilters := filterjs.Load(dapi.FlagsFilter.JsFiltersPath)
+	goFilters := plugins.Load(dapi.FlagsFilter.GoPluginsPath)
+
 	for _, jsFilter := range jsFilters {
 		filter := filterjs.NewFilterJS(jsFilter)
 		all = append(all, filter)
@@ -82,6 +101,7 @@ func Load() {
 			response = append(response, filter)
 		}
 	}
+
 	for _, goFilter := range goFilters {
 		filter := filtergo.NewFilterGO(goFilter)
 		all = append(all, filter)
@@ -91,12 +111,13 @@ func Load() {
 			response = append(response, filter)
 		}
 	}
-	validateFilterOrder(request)
-	validateFilterOrder(response)
-	orderFilterModels(all, request, response)
+
+	dapi.validateFilterOrder(request)
+	dapi.validateFilterOrder(response)
+	dapi.orderFilterModels(all, request, response)
 }
 
-func orderFilterModels(models ...[]model.Filter) {
+func (dapi *DefaultListAPI) orderFilterModels(models ...[]model.Filter) {
 	for _, filters := range models {
 		sort.SliceStable(filters[:], func(i, j int) bool {
 			return filters[i].Config().Order < filters[j].Config().Order
@@ -104,7 +125,7 @@ func orderFilterModels(models ...[]model.Filter) {
 	}
 }
 
-func validateFilterOrder(models []model.Filter) {
+func (dapi *DefaultListAPI) validateFilterOrder(models []model.Filter) {
 	last := -1
 	for _, filter := range models {
 		if filter.Config().Order == last {
@@ -115,14 +136,16 @@ func validateFilterOrder(models []model.Filter) {
 	}
 }
 
-func createDirWatcher() *watcher.Watcher {
+func (dapi *DefaultListAPI) createDirWatcher() *watcher.Watcher {
+
 	var dirWatcher = watcher.New()
 
 	go func() {
 		for {
 			select {
 			case event := <-dirWatcher.Event:
-				updateFilters()
+				log.Debug().Msg("Vou chamar o update filters")
+				dapi.updateFilters()
 				log.Warn().Msg(fmt.Sprintf("Filters definition updated : %#v", event))
 			case err := <-dirWatcher.Error:
 				log.Error().Err(err).Msg("DirWatcher error")
@@ -132,15 +155,19 @@ func createDirWatcher() *watcher.Watcher {
 		}
 	}()
 
-	if err := dirWatcher.AddRecursive(config.JsFiltersPath); err != nil {
+	if err := dirWatcher.AddRecursive(dapi.FlagsFilter.JsFiltersPath); err != nil {
+
 		log.Error().Err(err).Msg("DirWatcher error")
 	}
+
 
 	go func() {
 		if err := dirWatcher.Start(time.Second); err != nil {
 			log.Error().Err(err).Msg("DirWatcher error")
 		}
 	}()
+
+
 
 	return dirWatcher
 }

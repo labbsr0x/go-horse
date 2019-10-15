@@ -5,8 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/api/types"
@@ -19,11 +18,11 @@ type EventsAPI interface {
 }
 
 type DefaultEventsAPI struct {
-	*config.WebBuilder
+	*web.WebBuilder
 }
 
 // InitFromWebBuilder initializes a default consent api instance from a web builder instance
-func (dapi *DefaultEventsAPI) InitFromWebBuilder(webBuilder *config.WebBuilder) *DefaultEventsAPI {
+func (dapi *DefaultEventsAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *DefaultEventsAPI {
 	dapi.WebBuilder = webBuilder
 	return dapi
 }
@@ -33,7 +32,7 @@ func (dapi *DefaultEventsAPI) EventsHandler(ctx iris.Context) {
 
 	util.SetFilterContextValues(ctx)
 
-	_, err := filters.RunRequestFilters(ctx, RequestBodyKey)
+	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
 
 	if err != nil {
 		ctx.StopExecution()

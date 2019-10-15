@@ -1,12 +1,17 @@
-package config
+package web
 
 import (
 	"fmt"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"net/http"
+	"os"
 
 	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
+
 	"github.com/docker/docker/client"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
@@ -19,8 +24,6 @@ const (
 	logLevel         = "log-level"
 	prettyLog        = "pretty-log"
 	port             = "port"
-	jsFiltersPath    = "js-filters-path"
-	goPluginsPath    = "go-plugins-path"
 )
 
 // Flags define the fields that will be passed via cmd
@@ -31,8 +34,6 @@ type Flags struct {
 	LogLevel         string
 	PrettyLog        bool // Bool or string ?
 	Port             string
-	JsFiltersPath    string
-	GoPluginsPath    string
 }
 
 // WebBuilder defines the parametric information of a gohorse server instance
@@ -40,10 +41,11 @@ type WebBuilder struct {
 	*Flags
 	DockerCli  *client.Client
 	SockClient *http.Client
+	Filter *filters.Filter
 }
 
 // AddFlags adds flags for Builder.
-// TODO : Discuss shortchut name
+// TODO : Discuss shortcut name
 func AddFlags(flags *pflag.FlagSet) {
 	flags.StringP(dockerAPIVersion, "v", "1.39", "Version of Docker API")
 	flags.StringP(dockerSockURL, "u", "", "URL of Docker Socket")
@@ -51,12 +53,10 @@ func AddFlags(flags *pflag.FlagSet) {
 	flags.StringP(logLevel, "l", "info", "[optional] Sets the Log Level to one of seven (trace, debug, info, warn, error, fatal, panic). Defaults to info")
 	flags.BoolP(prettyLog, "t", false, "Enable or disable pretty log. Defaults to false")
 	flags.StringP(port, "p", ":8080", "Go Horse port. Defaults to :8080")
-	flags.StringP(jsFiltersPath, "j", "", "Sets the path to json filters")
-	flags.StringP(goPluginsPath, "g", "", "Sets the path to go plugins")
 }
 
 // InitFromWebBuilder initializes the web server builder with properties retrieved from Viper.
-func (b *WebBuilder) InitFromViper(v *viper.Viper) *WebBuilder {
+func (b *WebBuilder) InitFromViper(v *viper.Viper, filter *filters.Filter) *WebBuilder {
 
 	flags := new(Flags)
 	flags.DockerAPIVersion = v.GetString(dockerAPIVersion)
@@ -65,32 +65,30 @@ func (b *WebBuilder) InitFromViper(v *viper.Viper) *WebBuilder {
 	flags.LogLevel = v.GetString(logLevel)
 	flags.PrettyLog = v.GetBool(prettyLog)
 	flags.Port = v.GetString(port)
-	flags.JsFiltersPath = v.GetString(jsFiltersPath)
-	flags.GoPluginsPath = v.GetString(goPluginsPath)
 
 	flags.check()
+	flags.setLog()
+
 
 	b.Flags = flags
 	b.DockerCli = b.getDockerCli()
 	b.SockClient = b.getSocketClient()
+	b.Filter = filter
 
 	return b
 }
 
 func (flags *Flags) check() {
 
-	logrus.Infof("Flags: '%v'", flags)
+
+	log.Info().Msgf("Flags", flags)
 
 	haveEmptyRequiredFlags := flags.DockerSockURL == "" ||
-		flags.TargetHostName == "" ||
-		flags.JsFiltersPath == "" ||
-		flags.GoPluginsPath == ""
+		flags.TargetHostName == ""
 
 	requiredFlagsNames := []string{
 		dockerSockURL,
 		targetHostName,
-		jsFiltersPath,
-		goPluginsPath,
 	}
 
 	if haveEmptyRequiredFlags {
@@ -113,4 +111,12 @@ func (b *WebBuilder) getDockerCli() *client.Client {
 
 func (b *WebBuilder) getSocketClient() *http.Client {
 	return sockclient.Get(b.Flags.DockerSockURL)
+}
+
+func (f *Flags) setLog() {
+	zerolog.SetGlobalLevel(util.FixLogLevel(f.LogLevel))
+	if f.PrettyLog {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	} else {
+	}
 }

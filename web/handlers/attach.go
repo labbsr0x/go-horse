@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
-
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
@@ -18,11 +16,11 @@ type AttachAPI interface {
 }
 
 type DefaultAttachAPI struct {
-	*config.WebBuilder
+	*web.WebBuilder
 }
 
 // InitFromWebBuilder initializes a default consent api instance from a web builder instance
-func (dapi *DefaultAttachAPI) InitFromWebBuilder(webBuilder *config.WebBuilder) *DefaultAttachAPI {
+func (dapi *DefaultAttachAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *DefaultAttachAPI {
 	dapi.WebBuilder = webBuilder
 	return dapi
 }
@@ -32,7 +30,7 @@ func (dapi *DefaultAttachAPI) AttachHandler(ctx iris.Context) {
 
 	util.SetFilterContextValues(ctx)
 
-	_, err := filters.RunRequestFilters(ctx, RequestBodyKey)
+	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
 
 	if err != nil {
 		ctx.StopExecution()

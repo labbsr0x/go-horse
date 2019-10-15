@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	filterConfig "gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/config-filter"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
+	webConfig "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -12,8 +14,14 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Starts the HTTP REST APIs server",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		webBuilder := new(config.WebBuilder).InitFromViper(viper.GetViper())
+
+		filterBuilder := new(filterConfig.FilterBuilder).InitFromViper(viper.GetViper())
+		filter := new(filters.Filter).InitFromFilterBuilder(filterBuilder)
+		filter.ListAPIs.Init()
+
+		webBuilder := new(webConfig.WebBuilder).InitFromViper(viper.GetViper(), filter)
 		server := new(web.Server).InitFromWebBuilder(webBuilder)
+
 		return server.Run()
 	},
 }
@@ -21,7 +29,8 @@ var serveCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(serveCmd)
 
-	config.AddFlags(serveCmd.Flags())
+	webConfig.AddFlags(serveCmd.Flags())
+	filterConfig.AddFlags(serveCmd.Flags())
 
 	err := viper.GetViper().BindPFlags(serveCmd.Flags())
 	if err != nil {

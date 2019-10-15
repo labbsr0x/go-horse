@@ -1,23 +1,19 @@
 package web
 
 import (
-	"os"
-
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
+	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/handlers"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/recover"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"github.com/sirupsen/logrus"
 )
 
 // Server holds the information needed to run Whisper
 type Server struct {
-	*config.WebBuilder
+	*web.WebBuilder
 	ActiveFiltersAPIs handlers.ActiveFiltersAPI
 	AttachAPIs        handlers.AttachAPI
 	LogsAPIs          handlers.LogsAPI
@@ -29,7 +25,7 @@ type Server struct {
 }
 
 // InitFromWebBuilder builds a Server instance
-func (s *Server) InitFromWebBuilder(webBuilder *config.WebBuilder) *Server {
+func (s *Server) InitFromWebBuilder(webBuilder *web.WebBuilder) *Server {
 	s.WebBuilder = webBuilder
 	s.ActiveFiltersAPIs = new(handlers.DefaultActiveFiltersAPI).InitFromWebBuilder(webBuilder)
 	s.AttachAPIs = new(handlers.DefaultAttachAPI).InitFromWebBuilder(webBuilder)
@@ -80,17 +76,4 @@ func (s *Server) Run() error {
 	app.Any("*", s.ProxyAPIs.ProxyHandler)
 
 	return app.Run(iris.Addr(s.Flags.Port), iris.WithoutStartupLog)
-}
-
-// Restart Restart
-// func Restart(app *iris.Application) *iris.Application {
-// 	app.Shutdown(context.Background())
-// 	return GoHorse()
-// }
-
-func logSetup() {
-	zerolog.SetGlobalLevel(config.LogLevel)
-	if config.PrettyLog {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	}
 }

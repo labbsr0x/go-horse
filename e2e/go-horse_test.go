@@ -14,7 +14,7 @@ import (
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/list"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/spf13/viper"
 	"gotest.tools/icmd"
@@ -35,7 +35,7 @@ func init() {
 
 	go func() {
 		list.Reload()
-		webBuilder := new(config.WebBuilder).InitFromViper(viper.GetViper())
+		webBuilder := new(web.WebBuilder).InitFromViper(viper.GetViper())
 		app = new(web.Server).InitFromWebBuilder(webBuilder)
 		app.Run()
 	}()

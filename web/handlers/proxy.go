@@ -7,9 +7,8 @@ import (
 	"net/url"
 	"strings"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config"
+	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/kataras/iris"
@@ -26,17 +25,17 @@ type ProxyAPI interface {
 }
 
 type DefaultProxyAPI struct {
-	*config.WebBuilder
+	*web.WebBuilder
 }
 
-func (dapi *DefaultProxyAPI) InitFromWebBuilder(webBuilder *config.WebBuilder) *DefaultProxyAPI {
+func (dapi *DefaultProxyAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *DefaultProxyAPI {
 	dapi.WebBuilder = webBuilder
 	return dapi
 }
 
 func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 
-	log.Info().Str("request", ctx.String()).Msg("Receiving")
+	log.Debug().Str("request", ctx.String()).Msg("Receiving")
 
 	util.SetFilterContextValues(ctx)
 
@@ -50,11 +49,10 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 
 	ctx.Values().Set("path", ctx.Request().URL.Path)
 
-	// mussum was here
-	_, erris := filters.RunRequestFilters(ctx, RequestBodyKey)
+	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
 
-	if erris != nil {
-		log.Error().Err(erris).Msg("Error during the execution of REQUEST filters")
+	if err != nil {
+		log.Error().Err(err).Msg("Error during the execution of REQUEST filters")
 		ctx.StopExecution()
 		return
 	}
@@ -119,7 +117,7 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 	ctx.Values().Set(ResponseBodyKey, string(responseBody))
 	ctx.Values().Set("responseStatusCode", response.StatusCode)
 
-	result, errr := filters.RunResponseFilters(ctx, ResponseBodyKey)
+	result, errr := dapi.Filter.RunResponseFilters(ctx, ResponseBodyKey)
 
 	if errr != nil {
 		log.Error().Err(errr).Msg("Error during the execution of RESPONSE filters")
