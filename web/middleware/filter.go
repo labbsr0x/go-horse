@@ -32,8 +32,12 @@ func ResquestFilter(filter * filters.FilterManager) context.Handler {
 
 		_, err := filter.RunRequestFilters(ctx, RequestBodyKey)
 
+		writer := ctx.ResponseWriter()
+		ctx.ResetResponseWriter(writer)
+
 		if err != nil {
 			log.Error().Err(err).Msg("Error during the execution of REQUEST filters")
+			writer.WriteString(err.Error())
 			ctx.StopExecution()
 			return
 		}
