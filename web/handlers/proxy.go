@@ -10,7 +10,6 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 )
@@ -37,26 +36,6 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 
 	log.Debug().Str("request", ctx.String()).Msg("Receiving")
 
-	util.SetFilterContextValues(ctx)
-
-	if ctx.Request().Body != nil {
-		requestBody, erro := ioutil.ReadAll(ctx.Request().Body)
-		if erro != nil {
-			log.Error().Str("request", ctx.String()).Err(erro)
-		}
-		ctx.Values().Set(RequestBodyKey, string(requestBody))
-	}
-
-	ctx.Values().Set("path", ctx.Request().URL.Path)
-
-	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
-
-	if err != nil {
-		log.Error().Err(err).Msg("Error during the execution of REQUEST filters")
-		ctx.StopExecution()
-		return
-	}
-
 	u := ctx.Request().URL.ResolveReference(&url.URL{Path: ctx.Values().GetString("path"), RawQuery: ctx.Request().URL.RawQuery})
 	path := u.String()
 
@@ -72,10 +51,10 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 
 	log.Debug().Msg("Executing request for URL : " + path + " ...")
 
-	response, erre := dapi.SockClient.Do(request)
+	response, err := dapi.SockClient.Do(request)
 
-	if erre != nil {
-		log.Error().Str("request", ctx.String()).Err(erre).Msg("Error executing the request in main handler")
+	if err != nil {
+		log.Error().Str("request", ctx.String()).Err(err).Msg("Error executing the request in main handler")
 		ctx.Next()
 		return
 	}
@@ -102,10 +81,10 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 
 	}
 
-	responseBody, erro := ioutil.ReadAll(response.Body)
-	if erro != nil {
-		ctx.WriteString("Error reading the response body - " + erro.Error())
-		log.Error().Str("request", ctx.String()).Err(erro).Msg("Error parsing response body in main handler")
+	responseBody, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		ctx.WriteString("Error reading the response body - " + err.Error())
+		log.Error().Str("request", ctx.String()).Err(err).Msg("Error parsing response body in main handler")
 	}
 
 	for key, value := range response.Header {

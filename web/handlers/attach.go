@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
+	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
@@ -28,18 +28,8 @@ func (dapi *DefaultAttachAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *De
 // AttachHandler handle attach command
 func (dapi *DefaultAttachAPI) AttachHandler(ctx iris.Context) {
 
-	util.SetFilterContextValues(ctx)
-
-	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
-
-	if err != nil {
-		ctx.StopExecution()
-		return
-	}
-
 	params := ctx.FormValues()
 
-	context := context.Background()
 	options := types.ContainerAttachOptions{}
 
 	options.Stream = util.GetRequestParameter(params, "stream") == "1"
@@ -49,7 +39,7 @@ func (dapi *DefaultAttachAPI) AttachHandler(ctx iris.Context) {
 	options.DetachKeys = util.GetRequestParameter(params, "detachKeys")
 	options.Logs = util.GetRequestParameter(params, "logs") == "1"
 
-	resp, err := dapi.DockerCli.ContainerAttach(context, ctx.Params().Get("containerId"), options)
+	resp, err := dapi.DockerCli.ContainerAttach(context.Background(), ctx.Params().Get("containerId"), options)
 
 	if err != nil {
 		log.Error().Err(err).Msg("Error executing docker client # ContainerExecAttach")

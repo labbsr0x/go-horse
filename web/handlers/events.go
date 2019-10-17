@@ -7,7 +7,6 @@ import (
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/kataras/iris"
@@ -30,27 +29,13 @@ func (dapi *DefaultEventsAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *De
 // EventsHandler handle logs command
 func (dapi *DefaultEventsAPI) EventsHandler(ctx iris.Context) {
 
-	util.SetFilterContextValues(ctx)
-
-	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
-
-	if err != nil {
-		ctx.StopExecution()
-		return
-	}
-
-	context, cancel := context.WithCancel(context.Background())
+	contextWithCancel, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	messagesChannel, errorChannel := dapi.DockerCli.Events(context, types.EventsOptions{})
+	messagesChannel, errorChannel := dapi.DockerCli.Events(contextWithCancel, types.EventsOptions{})
 
 	writer := ctx.ResponseWriter()
 	ctx.ResetResponseWriter(writer)
-
-	if err != nil {
-		writer.WriteString(err.Error())
-		return
-	}
 
 	writer.Header().Set("Content-Type", "application/json")
 
@@ -67,7 +52,7 @@ func (dapi *DefaultEventsAPI) EventsHandler(ctx iris.Context) {
 		select {
 		case <-timeout:
 			return
-		case <-context.Done():
+		case <-contextWithCancel.Done():
 			return
 		case <-errorChannel:
 			return

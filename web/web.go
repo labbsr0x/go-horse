@@ -2,6 +2,7 @@ package web
 
 import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
@@ -55,6 +56,8 @@ func (s *Server) Run() error {
 
 	app.Get("/active-filters", s.ActiveFiltersAPIs.ActiveFiltersHandler)
 	app.Get("/metrics", iris.FromStd(promhttp.Handler()))
+
+	app.Use(middleware.ResquestFilter(s.Filter))
 
 	//TODO mapear rota para receber token ou nao
 	authToken := app.Party("/token/{token:string}/")

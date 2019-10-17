@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
-
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
+	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
@@ -30,15 +28,6 @@ func (dapi *DefaultExecAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *Defa
 // ExecHandler handle the exec command
 func (dapi *DefaultExecAPI) ExecHandler(ctx iris.Context) {
 
-	util.SetFilterContextValues(ctx)
-
-	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
-
-	if err != nil {
-		ctx.StopExecution()
-		return
-	}
-
 	var execStartCheck types.ExecStartCheck
 
 	if err := ctx.ReadJSON(&execStartCheck); err != nil {
@@ -47,9 +36,7 @@ func (dapi *DefaultExecAPI) ExecHandler(ctx iris.Context) {
 		return
 	}
 
-	context := context.Background()
-
-	resp, err := dapi.DockerCli.ContainerExecAttach(context, ctx.Params().Get("execInstanceId"), execStartCheck)
+	resp, err := dapi.DockerCli.ContainerExecAttach(context.Background(), ctx.Params().Get("execInstanceId"), execStartCheck)
 	if err != nil {
 		log.Error().Err(err).Msg("Error executing docker client # ContainerExecAttach")
 	}
@@ -113,7 +100,7 @@ msgLoop:
 		case msg := <-msgs:
 			fmt.Fprintf(conn, "%s", msg)
 		case <-msgsErr:
-			defer conn.Close()
+			defer conn.Close() // TODO : This is not cool (Possible resource leak)
 			break msgLoop
 		}
 	}

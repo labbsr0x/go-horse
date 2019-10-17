@@ -42,8 +42,7 @@ func (dapi *DefaultWaitAPI) WaitHandler(ctx iris.Context) {
 	params := ctx.FormValues()
 	condition := util.GetRequestParameter(params, "condition")
 
-	context := context.Background()
-	resp, err := dapi.DockerCli.ContainerWait(context, ctx.Params().Get("containerId"), container.WaitCondition(condition))
+	resp, err := dapi.DockerCli.ContainerWait(context.Background(), ctx.Params().Get("containerId"), container.WaitCondition(condition))
 
 	var respostaWait container.ContainerWaitOKBody
 	var erroWait error

@@ -29,17 +29,6 @@ func (dapi *DefaultLogsAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *Defa
 // LogsHandler handle logs command
 func (dapi *DefaultLogsAPI) LogsHandler(ctx iris.Context) {
 
-	util.SetFilterContextValues(ctx)
-
-	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
-
-	if err != nil {
-		ctx.StopExecution()
-		return
-	}
-
-	context := context.Background()
-
 	params := ctx.FormValues()
 
 	options := types.ContainerLogsOptions{
@@ -54,11 +43,12 @@ func (dapi *DefaultLogsAPI) LogsHandler(ctx iris.Context) {
 	}
 
 	var responseBody io.ReadCloser
+	var err error
 
 	if ctx.GetCurrentRoute().Name() == "container-logs" {
-		responseBody, err = dapi.DockerCli.ContainerLogs(context, ctx.Params().Get("id"), options)
+		responseBody, err = dapi.DockerCli.ContainerLogs(context.Background(), ctx.Params().Get("id"), options)
 	} else {
-		responseBody, err = dapi.DockerCli.ServiceLogs(context, ctx.Params().Get("id"), options)
+		responseBody, err = dapi.DockerCli.ServiceLogs(context.Background(), ctx.Params().Get("id"), options)
 	}
 
 	defer responseBody.Close()

@@ -29,20 +29,9 @@ func (dapi *DefaultStatsAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *Def
 // StatsHandler handle logs command
 func (dapi *DefaultStatsAPI) StatsHandler(ctx iris.Context) {
 
-	util.SetFilterContextValues(ctx)
-
-	_, err := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
-
-	if err != nil {
-		ctx.StopExecution()
-		return
-	}
-
-	context := context.Background()
-
 	params := ctx.FormValues()
 
-	response, err := dapi.DockerCli.ContainerStats(context, ctx.Params().Get("containerId"), util.GetRequestParameter(params, "stream") == "1")
+	response, err := dapi.DockerCli.ContainerStats(context.Background(), ctx.Params().Get("containerId"), util.GetRequestParameter(params, "stream") == "1")
 
 	writer := ctx.ResponseWriter()
 	ctx.ResetResponseWriter(writer)
