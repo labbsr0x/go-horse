@@ -53,8 +53,6 @@ services:
       - GOHORSE_PORT=:8080
       - GOHORSE_JS_FILTERS_PATH=/app/go-horse/filters
       - GOHORSE_GO_PLUGINS_PATH=/app/go-horse/plugins
-      - GOHORSE_TOKEN_VALIDATION_ENDPOINT=http://172.24.40.4:3000/info
-      - GOHORSE_ACL_AUTHORIZE_ENDPOINT=http://172.24.40.4:4466/warden/subjects/authorize
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /app/go-horse:/app/go-horse
@@ -90,9 +88,9 @@ go build
 
 <a name="envvars"/>
 
-#### 2.2. Environment variables
+#### 2.2 Environment variables
 
-Set the environment variable `DOCKER_HOST` to `tcp://localhost:8080` or test a single command adding -H attribute to a docker command : `docker -H=localhost:8080 ps -a` and watch the go-horse container logs
+Set the environment variable `DOCKER_HOST` to `tcp://go-horse-ip:go-horse-port` or test a single command adding -H attribute to a docker command : `docker -H=lgo-horse-ip:go-horse-port ps -a` and watch the go-horse container logs
 
 Besides the self explanatory variables, there are : 
 

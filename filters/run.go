@@ -14,27 +14,27 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type Filter struct {
+type FilterManager struct {
 	*filter.FilterBuilder
 	ListAPIs list.ListAPI
 }
 
 // InitFromFilterBuilder builds a Filter instance
-func (f  *Filter) InitFromFilterBuilder(filterBuilder *filter.FilterBuilder)  *Filter {
+func (f  *FilterManager) InitFromFilterBuilder(filterBuilder *filter.FilterBuilder)  *FilterManager {
 	f.FilterBuilder = filterBuilder
 	f.ListAPIs = new(list.DefaultListAPI).InitFromFilterBuilder(filterBuilder)
 	return f
 }
 
-func (f  *Filter) RunRequestFilters(ctx iris.Context, requestBodyKey string) (result model.FilterReturn, err error) {
+func (f  *FilterManager) RunRequestFilters(ctx iris.Context, requestBodyKey string) (result model.FilterReturn, err error) {
 	return f.runFilters(ctx, requestBodyKey, f.ListAPIs.RequestFilters())
 }
 
-func (f  *Filter) RunResponseFilters(ctx iris.Context, responseBodyKey string) (result model.FilterReturn, err error) {
+func (f  *FilterManager) RunResponseFilters(ctx iris.Context, responseBodyKey string) (result model.FilterReturn, err error) {
 	return f.runFilters(ctx, responseBodyKey, f.ListAPIs.ResponseFilters())
 }
 
-func (f  *Filter) runFilters(ctx iris.Context, bodyKey string, filters []model.Filter) (result model.FilterReturn, err error) {
+func (f  *FilterManager) runFilters(ctx iris.Context, bodyKey string, filters []model.Filter) (result model.FilterReturn, err error) {
 	for _, filter := range filters {
 		if filter.MatchURL(ctx) {
 			filterConfig := filter.Config()

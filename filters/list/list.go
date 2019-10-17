@@ -144,7 +144,6 @@ func (dapi *DefaultListAPI) createDirWatcher() *watcher.Watcher {
 		for {
 			select {
 			case event := <-dirWatcher.Event:
-				log.Debug().Msg("Vou chamar o update filters")
 				dapi.updateFilters()
 				log.Warn().Msg(fmt.Sprintf("Filters definition updated : %#v", event))
 			case err := <-dirWatcher.Error:

@@ -30,15 +30,6 @@ func (dapi *DefaultWaitAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *Defa
 // WaitHandler lero lero
 func (dapi *DefaultWaitAPI) WaitHandler(ctx iris.Context) {
 
-	util.SetFilterContextValues(ctx)
-
-	_, er := dapi.Filter.RunRequestFilters(ctx, RequestBodyKey)
-
-	if er != nil {
-		ctx.StopExecution()
-		return
-	}
-
 	params := ctx.FormValues()
 	condition := util.GetRequestParameter(params, "condition")
 

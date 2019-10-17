@@ -41,7 +41,7 @@ type WebBuilder struct {
 	*Flags
 	DockerCli  *client.Client
 	SockClient *http.Client
-	Filter *filters.Filter
+	Filter *filters.FilterManager
 }
 
 // AddFlags adds flags for Builder.
@@ -56,7 +56,7 @@ func AddFlags(flags *pflag.FlagSet) {
 }
 
 // InitFromWebBuilder initializes the web server builder with properties retrieved from Viper.
-func (b *WebBuilder) InitFromViper(v *viper.Viper, filter *filters.Filter) *WebBuilder {
+func (b *WebBuilder) InitFromViper(v *viper.Viper, filter *filters.FilterManager) *WebBuilder {
 
 	flags := new(Flags)
 	flags.DockerAPIVersion = v.GetString(dockerAPIVersion)
@@ -114,7 +114,7 @@ func (b *WebBuilder) getSocketClient() *http.Client {
 }
 
 func (f *Flags) setLog() {
-	zerolog.SetGlobalLevel(util.FixLogLevel(f.LogLevel))
+	zerolog.SetGlobalLevel(util.ParseLogLevel(f.LogLevel))
 	if f.PrettyLog {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	} else {
