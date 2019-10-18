@@ -14,22 +14,23 @@ var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Starts the HTTP REST APIs server",
 	Example: ` 
-				/go-horse serve \
-				  --docker-api-version 1.39 \
-				  --docker-sock-url unix:///var/run/docker.sock \
-				  --target-host-name http://go-horse \
-				  --log-level info \
-				  --pretty-log true \
-				  --js-filters-path /app/go-horse/filters \
-				  --go-plugins-path /app/go-horse/plugins
+./go-horse serve \
+  --docker-api-version 1.39 \
+  --docker-sock-url unix:///var/run/docker.sock \
+  --target-host-name http://go-horse \
+  --log-level info \
+  --pretty-log true \
+  --js-filters-path /app/go-horse/filters \
+  --go-plugins-path /app/go-horse/plugins
 
-	  All command line options can be provided via environment variables by adding the prefix "GOHORSE_" 
-	  and converting their names to upper case and replacing punctuation and hyphen with underscores. 
-	  For example,
-			command line option                 environment variable
-			------------------------------------------------------------------
-			--docker-sock-url                  	GOHORSE_DOCKER_SOCK_URL
-			-target.host.name               	GOHORSE_TARGET_HOST_NAME
+All command line options can be provided via environment variables by adding the prefix "GOHORSE_" 
+and converting their names to upper case and replacing punctuation and hyphen with underscores. 
+For example,
+
+command line option                 environment variable
+------------------------------------------------------------------
+--docker-sock-url                  	GOHORSE_DOCKER_SOCK_URL
+--target.host.name               	GOHORSE_TARGET_HOST_NAME
 	`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 
