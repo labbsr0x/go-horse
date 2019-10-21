@@ -1,7 +1,7 @@
 package list
 
 import (
-	"fmt"
+	"github.com/sirupsen/logrus"
 
 	filter "gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/config-filter"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filtergo"
@@ -15,7 +15,6 @@ import (
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/radovskyb/watcher"
-	"github.com/rs/zerolog/log"
 )
 
 // All requests and response filters
@@ -129,7 +128,9 @@ func (dapi *DefaultListAPI) validateFilterOrder(models []model.Filter) {
 	last := -1
 	for _, filter := range models {
 		if filter.Config().Order == last {
-			log.Fatal().Msg(fmt.Sprintf("Error on filters definitions : property configuration mismatch ORDER : theres 2 filters or more with the same order value -> %d", last))
+			logrus.WithFields(logrus.Fields{
+				"2 or more filters with the same order value": last,
+			}).Fatalf("Error on filters definitions : property configuration mismatch ORDER")
 			panic("Fix the filters configurations, including the plugins")
 		}
 		last = filter.Config().Order
@@ -145,9 +146,13 @@ func (dapi *DefaultListAPI) createDirWatcher() *watcher.Watcher {
 			select {
 			case event := <-dirWatcher.Event:
 				dapi.updateFilters()
-				log.Warn().Msg(fmt.Sprintf("Filters definition updated : %#v", event))
+				logrus.WithFields(logrus.Fields{
+					"event": event,
+				}).Warnf("Filters definition updated")
 			case err := <-dirWatcher.Error:
-				log.Error().Err(err).Msg("DirWatcher error")
+				logrus.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Errorf("DirWatcher error")
 			case <-dirWatcher.Closed:
 				return
 			}
@@ -155,14 +160,17 @@ func (dapi *DefaultListAPI) createDirWatcher() *watcher.Watcher {
 	}()
 
 	if err := dirWatcher.AddRecursive(dapi.FlagsFilter.JsFiltersPath); err != nil {
-
-		log.Error().Err(err).Msg("DirWatcher error")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("DirWatcher error")
 	}
 
 
 	go func() {
 		if err := dirWatcher.Start(time.Second); err != nil {
-			log.Error().Err(err).Msg("DirWatcher error")
+			logrus.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Errorf("DirWatcher error")
 		}
 	}()
 

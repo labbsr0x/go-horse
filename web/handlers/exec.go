@@ -3,12 +3,12 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io"
 
 	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
-	"github.com/rs/zerolog/log"
 )
 
 type ExecAPI interface {
@@ -38,7 +38,9 @@ func (dapi *DefaultExecAPI) ExecHandler(ctx iris.Context) {
 
 	resp, err := dapi.DockerCli.ContainerExecAttach(context.Background(), ctx.Params().Get("execInstanceId"), execStartCheck)
 	if err != nil {
-		log.Error().Err(err).Msg("Error executing docker client # ContainerExecAttach")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error executing docker client # ContainerExecAttach")
 	}
 	defer resp.Close()
 
@@ -63,7 +65,9 @@ func (dapi *DefaultExecAPI) ExecHandler(ctx iris.Context) {
 	ctx.ResetResponseWriter(writer)
 	conn, _, err := writer.Hijack()
 	if err != nil {
-		log.Error().Err(err).Msg("conn hijack failed")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("conn hijack failed")
 	}
 
 	conn.Write([]byte{})

@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
 	"github.com/kataras/iris"
-	"github.com/rs/zerolog/log"
 )
 
 type FilterManager struct {
@@ -38,7 +38,11 @@ func (f  *FilterManager) runFilters(ctx iris.Context, bodyKey string, filters []
 	for _, filter := range filters {
 		if filter.MatchURL(ctx) {
 			filterConfig := filter.Config()
-			log.Debug().Str("Filter matched", ctx.String()).Str("filter_config", fmt.Sprintf("%#v", filterConfig)).Msgf("Executing %s filter %s...", filterConfig.InvokeName(), filterConfig.Name)
+
+			logrus.WithFields(logrus.Fields{
+				"Filter matched": ctx.String(),
+				"filter_config": fmt.Sprintf("%#v", filterConfig),
+			}).Debugf("Executing %s filter %s...", filterConfig.InvokeName(), filterConfig.Name)
 
 			start := time.Now()
 
@@ -51,15 +55,27 @@ func (f  *FilterManager) runFilters(ctx iris.Context, bodyKey string, filters []
 				Observe(float64(time.Since(start).Seconds()) / 1000000000)
 
 			if err != nil {
-				log.Error().Err(err).Msgf("Error applying filter : %s", filterConfig.Name)
+				logrus.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Errorf("Error applying filter : %s", filterConfig.Name)
 			}
-			log.Debug().Str("Filter output", fmt.Sprintf("%#v", result)).Str("filter_config", fmt.Sprintf("%#v", result)).Msg("filter execution end")
+
+			logrus.WithFields(logrus.Fields{
+				"Filter output": fmt.Sprintf("%#v", result),
+				"filter_config": fmt.Sprintf("%#v", result),
+			}).Debugf("Filter execution end")
+
 			if result.Operation == model.Write {
-				log.Debug().Msgf("Body rewrite for filter : %s", filterConfig.Name)
+				logrus.WithFields(logrus.Fields{
+					"Filter": filterConfig.Name,
+				}).Debugf("Body rewrite for filte")
 				ctx.Values().Set(bodyKey, result.Body)
 			}
+
 			if !result.Next {
-				log.Info().Msgf("Filter chain canceled by filter - %s", filterConfig.Name)
+				logrus.WithFields(logrus.Fields{
+					"Filter": filterConfig.Name,
+				}).Infof("Filter chain canceled by filter")
 				break
 			}
 		}

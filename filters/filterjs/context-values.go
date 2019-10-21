@@ -4,30 +4,38 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"
-	"github.com/rs/zerolog/log"
+	"github.com/sirupsen/logrus"
 )
 
 func requestScopeGetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
-	key, error := call.Argument(0).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeGetToJSContext key field - js filter exec")
+	key, err := call.Argument(0).ToString()
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing requestScopeGetToJSContext key field - js filter exec")
 	}
 	value := util.RequestScopeGet(ctx, key)
-	result, error := otto.ToValue(value)
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeGetToJSContext function return - js filter exec")
+	result, err := otto.ToValue(value)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing requestScopeGetToJSContext function return - js filter exec")
 	}
 	return result
 }
 
 func requestScopeSetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
-	key, error := call.Argument(0).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeSetToJSContext key field - js filter exec")
+	key, err := call.Argument(0).ToString()
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing requestScopeSetToJSContext key field - js filter exec")
 	}
-	value, error := call.Argument(1).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeSetToJSContext function exec - js filter exec")
+	value, err := call.Argument(1).ToString()
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing requestScopeSetToJSContext function exec - js filter exec")
 	}
 	util.RequestScopeSet(ctx, key, value)
 	return otto.NullValue()
@@ -35,9 +43,11 @@ func requestScopeSetToJSContext(ctx iris.Context, call otto.FunctionCall) otto.V
 
 func requestScopeListToJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	mapa := util.RequestScopeList(ctx)
-	result, error := call.Otto.ToValue(mapa)
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing requestScopeListToJSContext response map - js filter exec")
+	result, err := call.Otto.ToValue(mapa)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing requestScopeListToJSContext response map - js filter exec")
 	}
 	return result
 }

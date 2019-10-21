@@ -4,7 +4,7 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/kataras/iris/context"
-	"github.com/rs/zerolog/log"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 )
 
@@ -23,7 +23,10 @@ func ResquestFilter(filter * filters.FilterManager) context.Handler {
 		if ctx.Request().Body != nil {
 			requestBody, err := ioutil.ReadAll(ctx.Request().Body)
 			if err != nil {
-				log.Error().Str("request", ctx.String()).Err(err)
+				logrus.WithFields(logrus.Fields{
+					"request": ctx.String(),
+					"error": err.Error(),
+				}).Errorf("Error parsing request body in the middleware")
 			}
 			ctx.Values().Set(RequestBodyKey, string(requestBody))
 		}
@@ -36,7 +39,9 @@ func ResquestFilter(filter * filters.FilterManager) context.Handler {
 		ctx.ResetResponseWriter(writer)
 
 		if err != nil {
-			log.Error().Err(err).Msg("Error during the execution of REQUEST filters")
+			logrus.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Errorf("Error during the execution of REQUEST filters")
 			writer.WriteString(err.Error())
 			ctx.StopExecution()
 			return

@@ -4,7 +4,7 @@ import (
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
 	"github.com/kataras/iris"
-	"github.com/rs/zerolog/log"
+	"github.com/sirupsen/logrus"
 	"regexp"
 )
 
@@ -34,9 +34,11 @@ func NewFilterGO(plugin plugins.GoFilterDefinition) FilterGO {
 	filterGo := FilterGO{}
 	filterGo.plugin = plugin
 	config := plugin.Config()
-	regex, error := regexp.Compile(config.PathPattern)
-	if error != nil {
-		log.Error().Str("plugin_name", config.Name).Err(error).Msg("Error compiling the filter url matcher regex")
+	regex, err := regexp.Compile(config.PathPattern)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"plugin_name": config.Name,
+		}).Errorf("Error compiling the filter url matcher regex")
 	}
 	config.Regex = regex
 	filterGo.FilterConfig = config

@@ -57,9 +57,6 @@ func (dapi *DefaultWaitAPI) WaitHandler(ctx iris.Context) {
 
 	ctx.StreamWriter(func(w io.Writer) bool {
 		time.Sleep(time.Second / 2)
-		// if erroWait != nil {
-		// 	log.Error().Err(erroWait).Msgf("Erro ao executar o wait")
-		// }
 		if finish || erroWait != nil {
 			if respostaWait.Error != nil {
 				fmt.Fprintf(w, "{\"StatusCode\": %d, \"Error\": {\"Message\": \"%s\"}}", respostaWait.StatusCode, respostaWait.Error.Message)
