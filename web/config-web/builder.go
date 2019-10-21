@@ -72,7 +72,7 @@ func (b *WebBuilder) InitFromViper(v *viper.Viper, filter *filters.FilterManager
 func (flags *Flags) check() {
 
 
-	logrus.Infof("Flags: %v", flags)
+	logrus.Infof("Web Flags: %v", flags)
 
 	haveEmptyRequiredFlags := flags.DockerSockURL == "" ||
 		flags.TargetHostName == ""
