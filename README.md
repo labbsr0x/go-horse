@@ -51,8 +51,6 @@ services:
       - GOHORSE_LOG_LEVEL=debug
       - GOHORSE_PRETTY_LOG=true
       - GOHORSE_PORT=:8080
-      - GOHORSE_JS_FILTERS_PATH=/app/go-horse/filters
-      - GOHORSE_GO_PLUGINS_PATH=/app/go-horse/plugins
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /app/go-horse:/app/go-horse
