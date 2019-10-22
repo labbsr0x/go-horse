@@ -7,21 +7,21 @@
 
 - [1. How it works](#1-how-it-works)
 - [2. Running](#2-running)
-  * [2.1.1 Running with docker](#211-runing-with-docker)
-  * [2.1.2 Serving locally](#212-serving-locally)
-  * [2.2 Environment variables](#22-environment-variables)
+  * [2.1 Running with docker](#21-running-with-docker)
+  * [2.2 Serving locally](#22-serving-locally)
+  * [2.3 Environment variables](#23-environment-variables)
 - [3. Filtering requests using JavaScript](#3-filtering-requests-using-javascript)
-    + [3.1. Filter function arguments](#31-filter-function-arguments)
-    + [3.2. Filter function return](#32-filter-function-return)
+  * [3.1. Filter function arguments](#31-filter-function-arguments)
+  * [3.2. Filter function return](#32-filter-function-return)
     + [3.2.1. Tricky return combinations](#321-tricky-return-combinations)
-    + [3.3. Rewriting URLs sent to the daemon](#33-rewriting-urls-sent-to-the-daemon)
-    + [3.4. Environment variables in JS filters](#34-environment-variables-in-js-filters)
-    + [3.5. Passing a token in DOCKER_HOST url](#35-passing-a-token-in-docker-host-url)
+  * [3.3. Rewriting URLs sent to the daemon](#33-rewriting-urls-sent-to-the-daemon)
+  * [3.4. Environment variables in JS filters](#34-environment-variables-in-js-filters)
+  * [3.5. Passing a token in the request URL](#35-passing-a-token-in-the-request-url)
 - [4. Filtering requests using Go](#4-filtering-requests-using-go)
-    + [4.1. Go filter interface](#41-go-filter-interface)
-    + [4.2. Sample GO filter](#42-sample-go-filter)
-    + [4.3. Compiling and running a golang filer](#43-compiling-and-running-a-golang-filer)
-    + [4.3. Another go filter sample](#43-another-go-filter-sample)
+  * [4.1. Go filter interface](#41-go-filter-interface)
+  * [4.2. Sample GO filter](#42-sample-go-filter)
+  * [4.3. Compiling and running a golang filer](#43-compiling-and-running-a-golang-filer)
+  * [4.3. Another go filter sample](#43-another-go-filter-sample)
 - [5. Extending Javascript filter context with Go Plugins](#5-extending-javascript-filter-context-with-go-plugins)
 - [6. JS versus GO - information to help your choice](#6-js-versus-go---information-to-help-your-choice)
 
@@ -35,7 +35,7 @@ Docker (http) commands sent from the client to the daemon are intercepted by cre
 
 ### 2. Running
 
-#### 2.1.1 Running with docker
+#### 2.1 Running with docker
 
 ```yaml
 version: '3.7'
@@ -62,7 +62,7 @@ services:
 docker-compose up
 ```
 
-#### 2.1.2 Serving locally
+#### 2.2 Serving locally
 
 1. Compile the local version
 
@@ -84,7 +84,7 @@ go build
 
 ```
 
-#### 2.2 Environment variables
+#### 2.3 Environment variables
 
 Set the environment variable `DOCKER_HOST` to `tcp://go-horse-ip:go-horse-port` or test a single command adding -H attribute to a docker command : `docker -H=lgo-horse-ip:go-horse-port ps -a` and watch the go-horse container logs
 
@@ -147,7 +147,7 @@ Now look at the `function` function - Yes, naming things aren't one of our stren
 
 That function called as 'function' receives 2 arguments. The first one, `ctx` has data and functions provided by go-horse, it is related to the 'client and daemon communication' and filter chain. The second one, the `plugins` argument, will contain data and functions provided by you. It's a way to extend the filter's context, if you need it. Letting you inject all things we forgot to include. We explain that better. Later. Now, more about the `ctx` variable and their properties :
 
-##### 3.1. Filter function arguments
+#### 3.1. Filter function arguments
 
 | ctx.`Property`  | Type       | Description| Parameters | Return | 
 | --------- | ---------- |------------|------------|------------|
@@ -171,7 +171,7 @@ That function called as 'function' receives 2 arguments. The first one, `ctx` ha
 
 After process the request, the filter needs to return a object like this :
 
-##### 3.2. Filter function return
+#### 3.2. Filter function return
 
 `{status: 200, next: true, body: ctx.body, operation : ctx.operation.READ}`
 
@@ -200,16 +200,16 @@ go-horse will assume the following default values : operation = READ(0). Filter 
 
 go-horse will ignore the body you returned because of the value `ctx.operation.READ` is set in response's *operation* field. Next filter will receive the same body you has received.
 
-##### 3.3. Rewriting URLs sent to the daemon
+#### 3.3. Rewriting URLs sent to the daemon
 
 There's a special variable stored in the request scope that should be changed if you need to rewrite the URL used to daemon's requests : `path`. The way to alter it value is to call the setVar function in the ctx object, argument of the filter function : `ctx.values.set('path', '/v1.39/newEndpoint')`.
 This was useful when we needed to pass a token in the DOCKER_HOST environment variable to identify the user. The token was extracted, verified against other system and the original URL was restored (if user was authorized), because the daemon doesn't like tokens.
 
-##### 3.4. Environment variables in JS filters
+#### 3.4. Environment variables in JS filters
 
 All env vars are available in javascript filters scope. You can list them by calling `ctx.values.list()` method. They are have an 'ENV_' prefix.
 
-##### 3.5. Passing a token in DOCKER_HOST url
+#### 3.5. Passing a token in the request URL
 
 **WARNING** this may change in a near future. We are not comfortable with this solution as is.
 
@@ -225,7 +225,7 @@ Another possible solution, and more elegant - i think, is to insert a token as a
 
 Besides Javascript, you can also create your filters using GoLang. If you don't like JS, if you don't want to be constrained by JS context limitation, ~~if you care about performance~~ (check out our surprisingly [ benchmark results ](#benchmark)) or ... ?? then, use Go Filters. It is up to you.
 
-##### 4.1. Go filter interface
+#### 4.1. Go filter interface
 
 ```go
 type GoFilterDefinition interface {
@@ -245,7 +245,7 @@ The `Exec` method, runs when a request hits go-horse and his url match the `Conf
 Invoke => model.Request<br/>
 Invoke => model.Response
 
-##### 4.2. Sample GO filter
+#### 4.2. Sample GO filter
 
 Create a go file named *sample_filter.go* .
 
@@ -287,7 +287,7 @@ var Plugin PluginModel
 
 ```
 
-##### 4.3. Compiling and running a golang filer
+#### 4.3. Compiling and running a golang filer
 
 Save the file above and run the following command in terminal to compile it :
 
@@ -324,7 +324,7 @@ Error response from daemon: newBody: i'm sure almost everyBody needs one
 
 Cool? Let's create another one, this time we will not return an error to docker client.
 
-##### 4.3. Another go filter sample
+#### 4.3. Another go filter sample
 
 Now we are gonna reverse the container's name and add a label during its creation.
 
