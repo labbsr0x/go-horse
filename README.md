@@ -36,7 +36,7 @@ Docker (http) commands sent from the client to the daemon are intercepted by cre
 
 #### 2.1.1 Runing with docker
 
-```docker-compose
+```yaml
 version: '3.7'
 services:
   proxy:
@@ -115,7 +115,7 @@ According to the environment variable `JS_FILTERS_PATH`, you have to place your 
 
 Create a file with the convention above, place it in the right directory - remember the `JS_FILTER_PATH` and paste the following code : 
 
-```
+```javascript
 {
 	"pathPattern": ".*",
 	"function" : function(ctx, plugins) {
@@ -131,7 +131,7 @@ Did you see it? Yeah! Live reloading for JS filters. Nice, uh? No? We did this t
 
 Now run a docker command like `docker image ls`. Watch the logs again. You should see something like this :
 
-```
+```text
 4:17PM DBG Receiving request request="[4] ::1 ▶ GET:/_ping"
 4:17PM DBG Request the mainHandler: /_ping
 >>> hello, go-horse
@@ -316,7 +316,7 @@ Save the file above and run the following command in terminal to compile it :
 
 Copy the `sample-filter.so` to `GO_PLUGINS_PATH` directory. Restart go-horse, run `docker ps -a` command. You should see something like this in the logs : 
 
-``` terminal
+```text
 5:06PM INF Receiving request request="[1] ::1 ▶ GET:/_ping"
 5:06PM DBG Running REQUEST filters for url : /_ping
 5:06PM DBG Executing request for URL : /_ping ...
@@ -338,7 +338,7 @@ Copy the `sample-filter.so` to `GO_PLUGINS_PATH` directory. Restart go-horse, ru
 
 And docker client should print this : 
 
-``` terminal
+```terminal
 [bruno@labbsr0x go-horse]$ docker ps -a
 Error response from daemon: newBody: i'm sure almost everyBody needs one
 ```
@@ -400,7 +400,7 @@ Run a `docker run -d --name sample_container redis`
 
 Run a `docker ps`
 
-```
+```text
 CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS              PORTS                    NAMES
 d6ad06221d8d        redis               "docker-entrypoint.s…"   3 seconds ago       Up 2 seconds        6379/tcp                 reniatnoc_elpmas
 ```
@@ -409,7 +409,7 @@ See the containers name we just created? sample_container => reniatnoc_elpmas
 
 Run a `docker inspect reniatnoc_elpmas | grep -i -C 5 'Labels'`
 
-``` terminal
+```terminal
             "WorkingDir": "/data",
             "Entrypoint": [
                 "docker-entrypoint.sh"
@@ -434,7 +434,7 @@ If you need something in JS filter context that is not there, you can create a g
 
 Go plugin :
 
-``` go
+```go
 package main
 
 import (
@@ -505,7 +505,7 @@ And the Javascript filter that use the plugin :
 ```
 Now compile the plugin and place the .so file and the js filter in the right folder. Run a `docker ps` command and watch the logs : 
 
-``` terminal
+```text
 9:24PM DBG executing filter ... Filter matched="[6] ::1 ▶ GET:/v1.39/containers/json?all=1" filter_config="model.FilterConfig{Name:\"plugin_sample\", Order:0, PathPattern:\".*\", Invoke:0, Function:\"function(ctx, plugins){\\n\\t\\tconsole.log(\\\">>>>> plugins.sample().ready : \\\", plugins.sample().ready)\\n\\t\\tconsole.log(\\\">>>>> plugins.sample().timeSpentUntilCallThisFunctionSincePluginWasInjected() : \\\", \\n\\t\\t\\tplugins.sample().timeSpentUntilCallThisFunctionSincePluginWasInjected())\\n\\t\\treturn {status: 200, next: true, body: ctx.body, operation : ctx.operation.READ};\\n\\t}\", regex:(*regexp.Regexp)(nil)}"
 >>>> GO JS PLUGIN >>>> ready :  true
 >>>>> plugins.sample().ready :  true
@@ -523,7 +523,7 @@ Very simple benchmark, just to compare the two types of filters.
 
 JS code
 
-``` javascript
+```javascript
 {
 	"pathPattern": ".*",
 	"function" : function(ctx, plugins){
@@ -536,7 +536,7 @@ JS code
 ```
 
 GO code
-``` go
+```go
 package main
 
 import (
@@ -577,7 +577,7 @@ var Plugin PluginModel
 ```
 
 No filters
-``` terminal
+```terminal
 [bruno@labbsr0x wrk2]$ wrk -t8 -c1000 -d30s -R10000 http://localhost:8080/v1.39/containers/json?all=1
 Running 30s test @ http://localhost:8080/v1.39/containers/json?all=1
   8 threads and 1000 connections
@@ -590,7 +590,7 @@ Transfer/sec:      7.14MB
 ```
 
 JS results
-``` terminal
+```terminal
 [bruno@labbsr0x wrk2]$ wrk -t8 -c1000 -d30s -R10000 http://localhost:8080/v1.39/containers/json?all=1
 Running 30s test @ http://localhost:8080/v1.39/containers/json?all=1
   8 threads and 1000 connections
@@ -603,7 +603,7 @@ Transfer/sec:      3.38MB
 ```
 
 GO results
-``` terminal
+```terminal
 [bruno@labbsr0x wrk2]$ wrk -t8 -c1000 -d30s -R10000 http://localhost:8080/v1.39/containers/json?all=1
 Running 30s test @ http://localhost:8080/v1.39/containers/json?all=1
   8 threads and 1000 connections
@@ -633,7 +633,7 @@ Transfer/sec:      5.71MB
 
 Now the same JS filter but calling a go plugin's injected property and function   : 
 
-``` terminal
+```terminal
 [bruno@labbsr0x wrk2]$ wrk -t8 -c100 -d10s -R10000 http://localhost:8080/v1.39/containers/json?all=1
 Running 10s test @ http://localhost:8080/v1.39/containers/json?all=1
   8 threads and 100 connections
