@@ -3,38 +3,39 @@
 >The software in the middle the communication between docker's client and daemon, allowing you to intercept all commands and, by example, do access control or add tags in a container during its creation, change its name, alter network definition, redifine volumes, rewrite the whole command's request body if you want, and so on. Take the control. Do what you need.
 
 
-#### Table of contents
+### Table of contents
 
-1. [ How it works ](#how_it_works)<br/>
-2. [ Running ](#running)<br/>
-   2.1. [ Environment variables ](#envvars)<br/>
-3. [ Filtering requests using JavaScript ](#js_filter)<br/>
-  3.1. [ Filter function arguments ](#js_filter_func_args)<br/>
-  3.2. [ Filter function return ](#js_filter_func_ret)<br/>
-  &emsp;3.2.1. [Tricky return combinations](#js_tricky)<br/>
-  3.3. [ Rewriting URLs sent to the daemon ](#js_rewrite)<br/>
-  3.4. [ Environment variables in JS filters ](#js_env_vars)<br/>
-4. [ Filtering requests using Go ](#go_filter)<br/>
-  4.1. [ Go filter interface ](#go_interface)<br/>
-  4.2. [ Sample Go filter ](#go_sample)<br/>
-  4.3. [ Compiling and running a golang filer ](#go_compile)<br/>
-  4.4. [ Another go filter sample ](#go_sample_2)
-5. [ Extending Javascript filter context with Go Plugins ](#go_plugin)
-6. [ JS versus GO - information to help your choice ](#benchmark)
+- [1. How it works](#1-how-it-works)
+- [2. Running](#2-running)
+  * [2.1.1 Running with docker](#211-runing-with-docker)
+  * [2.1.2 Serving locally](#212-serving-locally)
+  * [2.2 Environment variables](#22-environment-variables)
+- [3. Filtering requests using JavaScript](#3-filtering-requests-using-javascript)
+    + [3.1. Filter function arguments](#31-filter-function-arguments)
+    + [3.2. Filter function return](#32-filter-function-return)
+    + [3.2.1. Tricky return combinations](#321-tricky-return-combinations)
+    + [3.3. Rewriting URLs sent to the daemon](#33-rewriting-urls-sent-to-the-daemon)
+    + [3.4. Environment variables in JS filters](#34-environment-variables-in-js-filters)
+    + [3.5. Passing a token in DOCKER_HOST url](#35-passing-a-token-in-docker-host-url)
+- [4. Filtering requests using Go](#4-filtering-requests-using-go)
+    + [4.1. Go filter interface](#41-go-filter-interface)
+    + [4.2. Sample GO filter](#42-sample-go-filter)
+    + [4.3. Compiling and running a golang filer](#43-compiling-and-running-a-golang-filer)
+    + [4.3. Another go filter sample](#43-another-go-filter-sample)
+- [5. Extending Javascript filter context with Go Plugins](#5-extending-javascript-filter-context-with-go-plugins)
+- [6. JS versus GO - information to help your choice](#6-js-versus-go---information-to-help-your-choice)
 
 <br/>
-<a name="how_it_works"/>
 
 ### 1. How it works
 
 Docker (http) commands sent from the client to the daemon are intercepted by creating filters in go-horse. This filters can be implemented either in JavaScript or Golang. You should inform a *path pattern* to match a command url (check [docker api docs](https://docs.docker.com/engine/api/v1.39/) or see go-horse logs to map what urls are requested by docker client commands), a *invoke* property telling if you want the filter to run at the Request time, before the request hit the daemon, or on Response time, after the daemon has processed the request. Once your filter gets a request, you have all the means to implement the rules your business needs. Rewrite a url to the docker daemon? Check the user identity in another system? Send a http request and break the filter chain based on the response? Add metadata to a container? Change container properties? Compute specific metrics?  Blacklist some commands? Ok, can do. This and much more.
 
 <br/>
-<a name="running"/>
 
 ### 2. Running
 
-#### 2.1.1 Runing with docker
+#### 2.1.1 Running with docker
 
 ```yaml
 version: '3.7'
@@ -83,9 +84,6 @@ go build
 
 ```
 
-
-<a name="envvars"/>
-
 #### 2.2 Environment variables
 
 Set the environment variable `DOCKER_HOST` to `tcp://go-horse-ip:go-horse-port` or test a single command adding -H attribute to a docker command : `docker -H=lgo-horse-ip:go-horse-port ps -a` and watch the go-horse container logs
@@ -99,7 +97,6 @@ Besides the self explanatory variables, there are :
 | GO_PLUGINS_PATH | path    | where, in the images file system, are the go filter and the go plugins|
 
 <br/>
-<a name="js_filter"/>
 
 ### 3. Filtering requests using JavaScript
 According to the environment variable `JS_FILTERS_PATH`, you have to place your JavaScript filters there to get them loaded in the go-horse filter chain. These file's name have to obey the following pattern :
@@ -150,8 +147,6 @@ Now look at the `function` function - Yes, naming things aren't one of our stren
 
 That function called as 'function' receives 2 arguments. The first one, `ctx` has data and functions provided by go-horse, it is related to the 'client and daemon communication' and filter chain. The second one, the `plugins` argument, will contain data and functions provided by you. It's a way to extend the filter's context, if you need it. Letting you inject all things we forgot to include. We explain that better. Later. Now, more about the `ctx` variable and their properties :
 
-<a name="js_filter_func_args"/>
-
 ##### 3.1. Filter function arguments
 
 | ctx.`Property`  | Type       | Description| Parameters | Return | 
@@ -176,8 +171,6 @@ That function called as 'function' receives 2 arguments. The first one, `ctx` ha
 
 After process the request, the filter needs to return a object like this :
 
-<a name="js_filter_func_ret"/>
-
 ##### 3.2. Filter function return
 
 `{status: 200, next: true, body: ctx.body, operation : ctx.operation.READ}`
@@ -188,8 +181,6 @@ After process the request, the filter needs to return a object like this :
 | next  | boolean | `true` | This property tells go-horse to stop the filter chain and don't run other filters after this. |
 | body | object | `ctx.body` | Only useful when you need to substitute the original |
 | operation | `ctx.operation.READ` or `ctx.operation.WRITE` | `ctx.operation.READ` | READ : does nothing, next filter receive the same body as you did; WRITE : pass the body property you modified to the next filters or send to the docker client if your filter is the last in the chain |
-
-<a name="js_tricky"/>
 
 ##### 3.2.1. Tricky return combinations
 
@@ -209,14 +200,10 @@ go-horse will assume the following default values : operation = READ(0). Filter 
 
 go-horse will ignore the body you returned because of the value `ctx.operation.READ` is set in response's *operation* field. Next filter will receive the same body you has received.
 
-<a name="js_rewrite"/>
-
 ##### 3.3. Rewriting URLs sent to the daemon
 
 There's a special variable stored in the request scope that should be changed if you need to rewrite the URL used to daemon's requests : `path`. The way to alter it value is to call the setVar function in the ctx object, argument of the filter function : `ctx.values.set('path', '/v1.39/newEndpoint')`.
 This was useful when we needed to pass a token in the DOCKER_HOST environment variable to identify the user. The token was extracted, verified against other system and the original URL was restored (if user was authorized), because the daemon doesn't like tokens.
-
-<a name="js_env_vars"/>
 
 ##### 3.4. Environment variables in JS filters
 
@@ -233,13 +220,10 @@ In our case, this was used in conjunction with a CLI that logs the user in and c
 Another possible solution, and more elegant - i think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identity manager? Maybe.
 
 <br/>
-<a name="go_filter"/>
 
 ### 4. Filtering requests using Go
 
 Besides Javascript, you can also create your filters using GoLang. If you don't like JS, if you don't want to be constrained by JS context limitation, ~~if you care about performance~~ (check out our surprisingly [ benchmark results ](#benchmark)) or ... ?? then, use Go Filters. It is up to you.
-
-<a name="go_interface"/>
 
 ##### 4.1. Go filter interface
 
@@ -260,9 +244,6 @@ The `Exec` method, runs when a request hits go-horse and his url match the `Conf
 
 Invoke => model.Request<br/>
 Invoke => model.Response
-
-<a name="go_sample"/>
-
 
 ##### 4.2. Sample GO filter
 
@@ -306,8 +287,6 @@ var Plugin PluginModel
 
 ```
 
-<a name="go_compile"/>
-
 ##### 4.3. Compiling and running a golang filer
 
 Save the file above and run the following command in terminal to compile it :
@@ -344,8 +323,6 @@ Error response from daemon: newBody: i'm sure almost everyBody needs one
 ```
 
 Cool? Let's create another one, this time we will not return an error to docker client.
-
-<a name="go_sample_2"/>
 
 ##### 4.3. Another go filter sample
 
@@ -423,10 +400,7 @@ Run a `docker inspect reniatnoc_elpmas | grep -i -C 5 'Labels'`
             "Bridge": "",
 ```
 
-
-
 <br/>
-<a name="go_plugin"/>
 
 ### 5. Extending Javascript filter context with Go Plugins
 
@@ -515,7 +489,6 @@ Now compile the plugin and place the .so file and the js filter in the right fol
 ```
 
 <br/>
-<a name="benchmark"/>
 
 ### 6. JS versus GO - information to help your choice
 
