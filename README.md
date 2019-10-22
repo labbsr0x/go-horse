@@ -41,7 +41,7 @@ Docker (http) commands sent from the client to the daemon are intercepted by cre
 version: '3.7'
 services:
   proxy:
-    image: labbs/go-horse
+    image: labbsr0x/go-horse
     network_mode: bridge
     ports: 
       - 8080:8080
