@@ -1,6 +1,6 @@
 ## **GO-HORSE** : DOCKER DAEMON PROXY/FILTER
 
->The software in the middle the communication between docker's client and daemon, allowing you to intercept all commands and, by example, do access control or add tags in a container during its creation, change its name, alter network definition, redifine volumes, rewrite the whole command's request body if you want, and so on. Take the control. Do what you need.
+>The software in the middle the communication between docker's client and daemon, allowing you to intercept all commands and, by example, do access control or add tags in a container during its creation, change its name, alter network definition, redefine volumes, rewrite the whole command's request body if you want, and so on. Take the control. Do what you need.
 
 
 ### Table of contents
@@ -29,7 +29,7 @@
 
 ### 1. How it works
 
-Docker (http) commands sent from the client to the daemon are intercepted by creating filters in go-horse. This filters can be implemented either in JavaScript or Golang. You should inform a *path pattern* to match a command url (check [docker api docs](https://docs.docker.com/engine/api/v1.39/) or see go-horse logs to map what urls are requested by docker client commands), a *invoke* property telling if you want the filter to run at the Request time, before the request hit the daemon, or on Response time, after the daemon has processed the request. Once your filter gets a request, you have all the means to implement the rules your business needs. Rewrite a url to the docker daemon? Check the user identity in another system? Send a http request and break the filter chain based on the response? Add metadata to a container? Change container properties? Compute specific metrics?  Blacklist some commands? Ok, can do. This and much more.
+Docker (HTTP) commands sent from the client to the daemon are intercepted by creating filters in go-horse. These filters can be implemented either in JavaScript or Golang. You should inform a *path pattern* to match a command URL (check [docker API docs](https://docs.docker.com/engine/api/v1.39/) or see go-horse logs to map what URLs are requested by docker client commands), a *invoke* property telling if you want the filter to run at the Request time, before the request hit the daemon, or on Response time, after the daemon has processed the request. Once your filter gets a request, you have all the means to implement the rules your business needs. Rewrite a URL to the Docker daemon? Check the user identity in another system? Send an HTTP request and break the filter chain based on the response? Add metadata to a container? Change container properties? Compute specific metrics?  Blacklist some commands? Ok, can do. This and much more.
 
 <br/>
 
@@ -88,18 +88,18 @@ go build
 
 Set the environment variable `DOCKER_HOST` to `tcp://go-horse-ip:go-horse-port` or test a single command adding -H attribute to a docker command : `docker -H=lgo-horse-ip:go-horse-port ps -a` and watch the go-horse container logs
 
-Besides the self explanatory variables, there are : 
+Besides the self-explanatory variables, there are : 
 
 | Env Var         | Type    | Description                                        |
 | --------------- |  -------| ---------------------------------------------------|
-| PRETTY_LOG      | boolean | logs by default are ~~ugly~~ in json format        |
+| PRETTY_LOG      | boolean | logs by default are ~~ugly~~ in JSON format        |
 | JS_FILTER_PATH  | path    | where, in the images file system, are the js filter|
-| GO_PLUGINS_PATH | path    | where, in the images file system, are the go filter and the go plugins|
+| GO_PLUGINS_PATH | path    | where, in the images file system, are the go filters and the go plugins|
 
 <br/>
 
 ### 3. Filtering requests using JavaScript
-According to the environment variable `JS_FILTERS_PATH`, you have to place your JavaScript filters there to get them loaded in the go-horse filter chain. These file's name have to obey the following pattern :
+According to the environment variable `JS_FILTERS_PATH`, you have to place your JavaScript filters there to get them loaded in the go-horse filter chain. The name of these files must obey to the following pattern :
 
 - `000.request.test.js` => {order}.{invoke}.{name}.{extension}
 
@@ -124,7 +124,7 @@ Create a file with the convention above, place it in the right directory - remem
 
 Before executing a docker command, check the go-horse logs again. 
 
-Did you see it? Yeah! Live reloading for JS filters. Nice, uh? No? We did this trying to help you during filters development and also don't let the SysAdmins down when everything else is. If that bothers you, you can build a docker image `FROM labbs/go-horse` including the filters in its file system. And there you go, immutable happiness all the way.
+Did you see it? Yeah! Live reloading for JS filters. Nice, uh? No? We did this trying to help you during the filter's development and also don't let the SysAdmins down when everything else is. If that bothers you, you can build a docker image `FROM labbs/go-horse` including the filters in its file system. And there you go, immutable happiness all the way.
 
 Now run a docker command like `docker image ls`. Watch the logs again. You should see something like this :
 
@@ -141,11 +141,11 @@ Now run a docker command like `docker image ls`. Watch the logs again. You shoul
 4:17PM DBG Response the mainHandler:/v1.39/images/json
 ```
 
-We intercepted every request to docker daemon as configured by the property **pathPatter** in the filter definition file with the regex `.*`. Even though this is being a JavaScript file, that property's value will be used in the Go context (`regexp.Regexp`) to filter the URLs, so don't use JS regexes, they won't work in go-horse. Sorry. Test your patterns in sites like https://regex101.com/ with the golang ?flavor? selected.
+We intercepted every request to Docker daemon as configured by the property **pathPatter** in the filter definition file with the regex `.*`. Even though this is being a JavaScript file, that property's value will be used in the Go context (`regexp.Regexp`) to filter the URLs, so don't use JS regexes, they won't work in go-horse. Sorry. Test your patterns in sites like https://regex101.com/ with the golang? flavor? selected.
 
 Now look at the `function` function - Yes, naming things aren't one of our strengths. You will see more of this as you continue reading and get more involved with go-horse. Let us explain how this `function` function works: (there's a whole functionality going on)
 
-That function called as 'function' receives 2 arguments. The first one, `ctx` has data and functions provided by go-horse, it is related to the 'client and daemon communication' and filter chain. The second one, the `plugins` argument, will contain data and functions provided by you. It's a way to extend the filter's context, if you need it. Letting you inject all things we forgot to include. We explain that better. Later. Now, more about the `ctx` variable and their properties :
+That function called as 'function' receives 2 arguments. The first one, `ctx` has data and functions provided by go-horse, it is related to the 'client and daemon communication' and filter chain. The second one, the `plugins` argument, will contain data and functions provided by you. It's a way to extend the filter's context, if you need it. Letting you inject all the things we forgot to include. We explain that better. Later. Now, more about the `ctx` variable and their properties :
 
 #### 3.1. Filter function arguments
 
@@ -169,7 +169,7 @@ That function called as 'function' receives 2 arguments. The first one, `ctx` ha
 |ctx.**headers**|object|original headers sent by docker client|-| [map string string]
 |ctx.**request**|function|as we saw earlier, another bad name! They have spread all over - easy pull requests, just to mention... that function executes a http request | - [string] http method <br/> - [string] url <br/> - [string] body <br/> - [object] headers <br/>| [object] -> [body : object], [status : int], [headers : object] |
 
-After process the request, the filter needs to return a object like this :
+After processing the request, the filter needs to return an object like this :
 
 #### 3.2. Filter function return
 
@@ -180,7 +180,7 @@ After process the request, the filter needs to return a object like this :
 | status  | int | `200` | In case of error, to overwrite original status.| 
 | next  | boolean | `true` | This property tells go-horse to stop the filter chain and don't run other filters after this. |
 | body | object | `ctx.body` | Only useful when you need to substitute the original |
-| operation | `ctx.operation.READ` or `ctx.operation.WRITE` | `ctx.operation.READ` | READ : does nothing, next filter receive the same body as you did; WRITE : pass the body property you modified to the next filters or send to the docker client if your filter is the last in the chain |
+| operation | `ctx.operation.READ` or `ctx.operation.WRITE` | `ctx.operation.READ` | READ: does nothing, next filter receive the same body as you did; WRITE: pass the body property you modified to the next filters or send to the docker client if your filter is the last in the chain |
 
 ##### 3.2.1. Tricky return combinations
 
@@ -190,34 +190,34 @@ go-horse will assume the following default values : status = 0; next = false; bo
 
 **`return { body : "something bad happen", status : 500 }`**
 
-go-horse will assume the following default values : next = false; operation = READ(0) and the docker client will print in the terminal : "something bad happen". Filter chain will stop.
+go-horse will assume the following default values: next = false; operation = READ(0) and the docker client will print in the terminal: "something bad happens". Filter chain will stop.
 
-**`return { next: true, body : "something bad happen", status : 500 }`**
+**`return { next: true, body : "something bad happens", status : 500 }`**
 
-go-horse will assume the following default values : operation = READ(0). Filter chain won't stop and if another filter don't override the body and error status, docker client will print in the terminal : "something bad happen"
+go-horse will assume the following default values : operation = READ(0). Filter chain won't stop and if another filter doesn't override the body and error status, docker client will print in the terminal: "something bad happens"
 
 **`return { next: true, body : [{ container : ... }], status : 200, operation : ctx.operation.READ }`**
 
-go-horse will ignore the body you returned because of the value `ctx.operation.READ` is set in response's *operation* field. Next filter will receive the same body you has received.
+go-horse will ignore the body you returned because of the value `ctx.operation.READ` is set in response's *operation* field. The next filter will receive the same body you have received.
 
 #### 3.3. Rewriting URLs sent to the daemon
 
-There's a special variable stored in the request scope that should be changed if you need to rewrite the URL used to daemon's requests : `path`. The way to alter it value is to call the setVar function in the ctx object, argument of the filter function : `ctx.values.set('path', '/v1.39/newEndpoint')`.
-This was useful when we needed to pass a token in the DOCKER_HOST environment variable to identify the user. The token was extracted, verified against other system and the original URL was restored (if user was authorized), because the daemon doesn't like tokens.
+There's a special variable stored in the request scope that should be changed if you need to rewrite the URL used to daemon's requests: `path`. The way to alter it value is to call the setVar function in the ctx object, argument of the filter function : `ctx.values.set('path', '/v1.39/newEndpoint')`.
+This was useful when we needed to pass a token in the DOCKER_HOST environment variable to identify the user. The token was extracted, verified against other systems and the original URL was restored (if the user was authorized) because the daemon doesn't like tokens.
 
 #### 3.4. Environment variables in JS filters
 
-All env vars are available in javascript filters scope. You can list them by calling `ctx.values.list()` method. They are have an 'ENV_' prefix.
+All env vars are available in javascript filters scope. You can list them by calling `ctx.values.list()` method. They have the 'ENV_' prefix.
 
 #### 3.5. Passing a token in the request URL
 
-**WARNING** this may change in a near future. We are not comfortable with this solution as is.
+**WARNING** this may change soon. We are not comfortable with this solution as is.
 
 The routes are duplicated, one version with a `/token/{token}` prefixed and another version without the token prefix.
 
-In our case, this was used in conjunction with a CLI that logs the user in and changes the DOCKER_HOST env var in the user machine to our go-horse address with the token added in its path. The first filter - with order equals 0, extract the token, validates the user and rewrite the url calling `ctx.values.set('path', '<tokenless_url>')`.
+In our case, this was used in conjunction with a CLI that logs the user in and changes the DOCKER_HOST env var in the user machine to our go-horse address with the token added in its path. The first filter - with order equals 0, extract the token, validates the user and rewrite the URL calling `ctx.values.set('path', '<tokenless_url>')`.
 
-Another possible solution, and more elegant - i think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identity manager? Maybe.
+Another possible solution, and more elegant - I think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identity manager? Maybe.
 
 <br/>
 
@@ -235,12 +235,12 @@ type GoFilterDefinition interface {
 ```
 Your go filters have to implement those functions.
 
-The `Config` method tells go-horse information about yout filter. Same rules as [ JavaScript filters ](#js_filter).
+The `Config` method tells go-horse information about your filter. Same rules as [ JavaScript filters ](#js_filter).
 
 Operation => model.Read<br />
 Operation => model.Write
 
-The `Exec` method, runs when a request hits go-horse and his url match the `Config.PathPattern` attribute.
+The `Exec` method, runs when a request hits go-horse and his URL matches the `Config.PathPattern` attribute.
 
 Invoke => model.Request<br/>
 Invoke => model.Response
@@ -287,7 +287,7 @@ var Plugin PluginModel
 
 ```
 
-#### 4.3. Compiling and running a golang filer
+#### 4.3. Compiling and running a golang filter
 
 Save the file above and run the following command in terminal to compile it :
 
@@ -404,7 +404,7 @@ Run a `docker inspect reniatnoc_elpmas | grep -i -C 5 'Labels'`
 
 ### 5. Extending Javascript filter context with Go Plugins
 
-If you need something in JS filter context that is not there, you can create a go plugin to inject anything you need in JS filter through the `plugin` argument in the function `function`.
+If you need something in the JS filter context that is not there, you can create a go plugin to inject anything you need in JS filter through the `plugin` argument in the function `function`.
 
 Go plugin :
 
@@ -451,7 +451,7 @@ func (js PluginModel) Set(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	}
 
 	if err != nil {
-		fmt.Println("erro ao cria o objecto de rectorno da função js do plugin  ", js.Name(), " : ", err)
+		fmt.Println("erro ao criar o objecto de retorno da função js do plugin  ", js.Name(), " : ", err)
 	}
 	return obj.Value()
 }
@@ -464,7 +464,7 @@ func (js PluginModel) Name() string {
 // Plugin exported as symbol named "Greeter"
 var Plugin PluginModel
 ```
-And the Javascript filter that use the plugin : 
+And the Javascript filter that uses the plugin : 
 
 ```javascript
 {
@@ -545,7 +545,7 @@ func (filter PluginModel) Config() (Name string, Order int, PathPattern string, 
 	return "GO_FILTER_BENCHMARK", 1, "/containers/json", 0
 }
 
-// Plugin exported as symbol
+// Plugin exported as a symbol
 var Plugin PluginModel
 ```
 
@@ -590,7 +590,7 @@ Transfer/sec:    436.12KB
 ```
 Weird. Wasn't expecting this.
 
-A simple test : the same benchmark code that was running inside the plugin but now running directly in go-horse code. No go plugins involved here.
+A simple test: the same benchmark code that was running inside the plugin but now running directly in go-horse code. No go plugins involved here.
 
 ```terminal
 [bruno@labbsr0x wrk2]$ wrk -t8 -c100 -d5s -R10000 http://localhost:8080/v1.39/containers/json?all=1
