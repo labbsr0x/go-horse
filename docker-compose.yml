@@ -4,20 +4,20 @@ services:
   
   proxy:
     build: .
-    image: go-horse
+    image: labbsr0x/go-horse
     network_mode: bridge
     ports: 
       - 8080:8080
     environment: 
-      - DOCKER_API_VERSION=1.39
-      - DOCKER_SOCK=unix:///var/run/docker.sock
-      - LOG_LEVEL=debug
-      - PRETTY_LOG=true
-      - PORT=:8080
-      - JS_FILTERS_PATH=/app/go-horse/filters
-      - GO_PLUGINS_PATH=/app/go-horse/plugins
-      - TOKEN_VALIDATION_ENDPOINT=http://172.24.40.4:3000/info
-      - ACL_AUTHORIZE_ENDPOINT=http://172.24.40.4:4466/warden/subjects/authorize
+      - GOHORSE_DOCKER_API_VERSION=1.39
+      - GOHORSE_DOCKER_SOCK_URL=unix:///var/run/docker.sock
+      - GOHORSE_TARGET_HOST_NAME=http://go-horse
+      - GOHORSE_LOG_LEVEL=debug
+      - GOHORSE_PRETTY_LOG=true
+      - GOHORSE_PORT=:8080
+      - GOHORSE_JS_FILTERS_PATH=/app/go-horse/filters
+      - GOHORSE_GO_PLUGINS_PATH=/app/go-horse/plugins
+      
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /app/go-horse:/app/go-horse

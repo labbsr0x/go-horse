@@ -1,9 +1,10 @@
 package prometheus
 
 import (
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
 	"strconv"
 	"time"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/version"
 
 	"github.com/kataras/iris/context"
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,7 +34,7 @@ func GetMetrics() *MetricsPrometheus {
 }
 
 func registerMetrics(p *MetricsPrometheus) {
-	constLabels := prometheus.Labels{"service": name, "service_version": config.Version}
+	constLabels := prometheus.Labels{"service": name, "service_version": version.Version}
 	p.reqCount = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name:        "http_requests_total",

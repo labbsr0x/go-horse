@@ -3,32 +3,37 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 	"time"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/api/types/container"
 	"github.com/kataras/iris"
 )
 
+type WaitAPI interface {
+	WaitHandler(ctx iris.Context)
+}
+
+type DefaultWaitAPI struct {
+	*web.WebBuilder
+}
+
+// InitFromWebBuilder initializes a default consent api instance from a web builder instance
+func (dapi *DefaultWaitAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *DefaultWaitAPI {
+	dapi.WebBuilder = webBuilder
+	return dapi
+}
+
 // WaitHandler lero lero
-func WaitHandler(ctx iris.Context) {
-
-	util.SetFilterContextValues(ctx)
-
-	_, er := filters.RunRequestFilters(ctx, RequestBodyKey)
-
-	if er != nil {
-		ctx.StopExecution()
-		return
-	}
+func (dapi *DefaultWaitAPI) WaitHandler(ctx iris.Context) {
 
 	params := ctx.FormValues()
 	condition := util.GetRequestParameter(params, "condition")
 
-	context := context.Background()
-	resp, err := dockerCli.ContainerWait(context, ctx.Params().Get("containerId"), container.WaitCondition(condition))
+	resp, err := dapi.DockerCli.ContainerWait(context.Background(), ctx.Params().Get("containerId"), container.WaitCondition(condition))
 
 	var respostaWait container.ContainerWaitOKBody
 	var erroWait error

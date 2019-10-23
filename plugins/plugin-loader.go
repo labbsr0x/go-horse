@@ -1,13 +1,13 @@
 package plugins
 
 import (
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/config"
+	"io/ioutil"
+	"plugin"
+
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"
 	"github.com/rs/zerolog/log"
-	"io/ioutil"
-	"plugin"
 )
 
 // FilterPluginList filters
@@ -29,29 +29,29 @@ type JSContextInjection interface {
 }
 
 // Load Load
-func Load() []GoFilterDefinition {
+func Load(goPluginsPath string) []GoFilterDefinition {
 
 	if FilterPluginList != nil || JSPluginList != nil {
 		return FilterPluginList
 	}
 
-	files, err := ioutil.ReadDir(config.GoPluginsPath)
+	files, err := ioutil.ReadDir(goPluginsPath)
 	if err != nil {
-		log.Error().Err(err).Str("dir", config.GoPluginsPath).Msg("Could not load plugins from directory")
+		log.Error().Err(err).Str("dir", goPluginsPath).Msg("Could not load plugins from directory")
 	}
 
 	for _, file := range files {
 
 		log.Debug().Str("file", file.Name()).Msg("Loading plugin")
 
-		plug, err := plugin.Open(config.GoPluginsPath + "/" + file.Name())
+		plug, err := plugin.Open(goPluginsPath + "/" + file.Name())
 		if err != nil {
-			log.Error().Err(err).Str("plugin_path", config.GoPluginsPath+"/"+file.Name()).Msg("Could not open plugin")
+			log.Error().Err(err).Str("plugin_path", goPluginsPath+"/"+file.Name()).Msg("Could not open plugin")
 		}
 
 		symPlugin, err := plug.Lookup("Plugin")
 		if err != nil {
-			log.Error().Err(err).Str("plugin_path", config.GoPluginsPath+"/"+file.Name()).Msg("Could not load plugin")
+			log.Error().Err(err).Str("plugin_path", goPluginsPath+"/"+file.Name()).Msg("Could not load plugin")
 		}
 
 		var filter GoFilterDefinition

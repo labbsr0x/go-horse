@@ -2,25 +2,39 @@ package filters
 
 import (
 	"fmt"
+	"net/http"
+	"strconv"
+	"time"
+
+	filter "gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/config-filter"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/list"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
-	"net/http"
-	"strconv"
-	"time"
 )
 
-func RunRequestFilters(ctx iris.Context, requestBodyKey string) (result model.FilterReturn, err error) {
-	return runFilters(ctx, requestBodyKey, list.RequestFilters())
+type FilterManager struct {
+	*filter.FilterBuilder
+	ListAPIs list.ListAPI
 }
 
-func RunResponseFilters(ctx iris.Context, responseBodyKey string) (result model.FilterReturn, err error) {
-	return runFilters(ctx, responseBodyKey, list.ResponseFilters())
+// InitFromFilterBuilder builds a Filter instance
+func (f  *FilterManager) InitFromFilterBuilder(filterBuilder *filter.FilterBuilder)  *FilterManager {
+	f.FilterBuilder = filterBuilder
+	f.ListAPIs = new(list.DefaultListAPI).InitFromFilterBuilder(filterBuilder)
+	return f
 }
 
-func runFilters(ctx iris.Context, bodyKey string, filters []model.Filter) (result model.FilterReturn, err error) {
+func (f  *FilterManager) RunRequestFilters(ctx iris.Context, requestBodyKey string) (result model.FilterReturn, err error) {
+	return f.runFilters(ctx, requestBodyKey, f.ListAPIs.RequestFilters())
+}
+
+func (f  *FilterManager) RunResponseFilters(ctx iris.Context, responseBodyKey string) (result model.FilterReturn, err error) {
+	return f.runFilters(ctx, responseBodyKey, f.ListAPIs.ResponseFilters())
+}
+
+func (f  *FilterManager) runFilters(ctx iris.Context, bodyKey string, filters []model.Filter) (result model.FilterReturn, err error) {
 	for _, filter := range filters {
 		if filter.MatchURL(ctx) {
 			filterConfig := filter.Config()

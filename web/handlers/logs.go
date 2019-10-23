@@ -2,28 +2,32 @@ package handlers
 
 import (
 	"context"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 	"time"
+
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
 )
 
+type LogsAPI interface {
+	LogsHandler(ctx iris.Context)
+}
+
+type DefaultLogsAPI struct {
+	*web.WebBuilder
+}
+
+// InitFromWebBuilder initializes a default consent api instance from a web builder instance
+func (dapi *DefaultLogsAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *DefaultLogsAPI {
+	dapi.WebBuilder = webBuilder
+	return dapi
+}
+
 // LogsHandler handle logs command
-func LogsHandler(ctx iris.Context) {
-
-	util.SetFilterContextValues(ctx)
-
-	_, err := filters.RunRequestFilters(ctx, RequestBodyKey)
-
-	if err != nil {
-		ctx.StopExecution()
-		return
-	}
-
-	context := context.Background()
+func (dapi *DefaultLogsAPI) LogsHandler(ctx iris.Context) {
 
 	params := ctx.FormValues()
 
@@ -39,11 +43,12 @@ func LogsHandler(ctx iris.Context) {
 	}
 
 	var responseBody io.ReadCloser
+	var err error
 
 	if ctx.GetCurrentRoute().Name() == "container-logs" {
-		responseBody, err = dockerCli.ContainerLogs(context, ctx.Params().Get("id"), options)
+		responseBody, err = dapi.DockerCli.ContainerLogs(context.Background(), ctx.Params().Get("id"), options)
 	} else {
-		responseBody, err = dockerCli.ServiceLogs(context, ctx.Params().Get("id"), options)
+		responseBody, err = dapi.DockerCli.ServiceLogs(context.Background(), ctx.Params().Get("id"), options)
 	}
 
 	defer responseBody.Close()

@@ -3,26 +3,30 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
 	"io"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
+	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
 	"github.com/rs/zerolog/log"
 )
 
+type ExecAPI interface {
+	ExecHandler(ctx iris.Context)
+}
+
+type DefaultExecAPI struct {
+	*web.WebBuilder
+}
+
+// InitFromWebBuilder initializes a default consent api instance from a web builder instance
+func (dapi *DefaultExecAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *DefaultExecAPI {
+	dapi.WebBuilder = webBuilder
+	return dapi
+}
+
 // ExecHandler handle the exec command
-func ExecHandler(ctx iris.Context) {
-
-	util.SetFilterContextValues(ctx)
-
-	_, err := filters.RunRequestFilters(ctx, RequestBodyKey)
-
-	if err != nil {
-		ctx.StopExecution()
-		return
-	}
+func (dapi *DefaultExecAPI) ExecHandler(ctx iris.Context) {
 
 	var execStartCheck types.ExecStartCheck
 
@@ -32,9 +36,7 @@ func ExecHandler(ctx iris.Context) {
 		return
 	}
 
-	context := context.Background()
-
-	resp, err := dockerCli.ContainerExecAttach(context, ctx.Params().Get("execInstanceId"), execStartCheck)
+	resp, err := dapi.DockerCli.ContainerExecAttach(context.Background(), ctx.Params().Get("execInstanceId"), execStartCheck)
 	if err != nil {
 		log.Error().Err(err).Msg("Error executing docker client # ContainerExecAttach")
 	}
@@ -98,7 +100,7 @@ msgLoop:
 		case msg := <-msgs:
 			fmt.Fprintf(conn, "%s", msg)
 		case <-msgsErr:
-			defer conn.Close()
+			defer conn.Close() // TODO : This is not cool (Possible resource leak)
 			break msgLoop
 		}
 	}
