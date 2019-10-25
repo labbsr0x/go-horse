@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	"github.com/docker/docker/api"
 	"github.com/sirupsen/logrus"
 	"net/http"
 
@@ -41,7 +42,7 @@ type WebBuilder struct {
 
 // AddFlags adds flags for Builder.
 func AddFlags(flags *pflag.FlagSet) {
-	flags.StringP(dockerAPIVersion, "v", "1.39", "Version of Docker API")
+	flags.StringP(dockerAPIVersion, "v", api.DefaultVersion, "Version of Docker API")
 	flags.StringP(dockerSockURL, "u", client.DefaultDockerHost, "URL of Docker Socket")
 	flags.StringP(targetHostName, "n", "", "Target host name")
 	flags.StringP(logLevel, "l", "info", "[optional] Sets the Log Level to one of seven (trace, debug, info, warn, error, fatal, panic). Defaults to info")
