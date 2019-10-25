@@ -36,13 +36,13 @@ type WebBuilder struct {
 	*Flags
 	DockerCli  *client.Client
 	SockClient *http.Client
-	Filter *filters.FilterManager
+	Filter     *filters.FilterManager
 }
 
 // AddFlags adds flags for Builder.
 func AddFlags(flags *pflag.FlagSet) {
 	flags.StringP(dockerAPIVersion, "v", "1.39", "Version of Docker API")
-	flags.StringP(dockerSockURL, "u", "", "URL of Docker Socket")
+	flags.StringP(dockerSockURL, "u", client.DefaultDockerHost, "URL of Docker Socket")
 	flags.StringP(targetHostName, "n", "", "Target host name")
 	flags.StringP(logLevel, "l", "info", "[optional] Sets the Log Level to one of seven (trace, debug, info, warn, error, fatal, panic). Defaults to info")
 	flags.StringP(port, "p", ":8080", "Go Horse port. Defaults to :8080")
@@ -70,7 +70,6 @@ func (b *WebBuilder) InitFromViper(v *viper.Viper, filter *filters.FilterManager
 }
 
 func (flags *Flags) check() {
-
 
 	logrus.Infof("Web Flags: %v", flags)
 
@@ -111,7 +110,7 @@ func (f *Flags) setLog() {
 
 	level, err := logrus.ParseLevel(f.LogLevel)
 
-	if err != nil{
+	if err != nil {
 		panic(err)
 	}
 	logrus.WithFields(logrus.Fields{
