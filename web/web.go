@@ -1,15 +1,19 @@
 package web
 
 import (
+	stdContext "context"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/middleware"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-
 	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/handlers"
+	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/middleware"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/recover"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 // Server holds the information needed to run Whisper
@@ -78,5 +82,34 @@ func (s *Server) Run() error {
 	app.Get("/{version:string}/events", s.EventsAPIs.EventsHandler)
 	app.Any("*", s.ProxyAPIs.ProxyHandler)
 
-	return app.Run(iris.Addr(s.Flags.Port), iris.WithoutStartupLog)
+	return s.ListenAndServe(app)
+}
+
+func (s *Server) ListenAndServe(app *iris.Application) error {
+
+	go func() {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch,
+			os.Interrupt,
+			syscall.SIGINT,
+			os.Kill,
+			syscall.SIGKILL,
+			syscall.SIGTERM,
+		)
+		<-ch
+		logrus.Info("Server Stopped")
+		logrus.Debugf("Waiting %v seconds",time.Second * s.ShutdownTime)
+		ctx, cancel := stdContext.WithTimeout(stdContext.Background(), time.Second * s.ShutdownTime)
+
+		defer cancel()
+
+		if err := app.Shutdown(ctx); err != nil{
+			logrus.Fatal("server finalization error: %v", err)
+		}
+
+		logrus.Info("Server Exited Properly")
+	}()
+
+	logrus.Infof("Starting Server")
+	return app.Run(iris.Addr(s.Flags.Port), iris.WithoutInterruptHandler)
 }
