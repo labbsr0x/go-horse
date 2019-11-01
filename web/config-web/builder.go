@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"time"
 
 	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
 
@@ -21,6 +22,7 @@ const (
 	targetHostName   = "target-host-name"
 	logLevel         = "log-level"
 	port             = "port"
+	shutdownTime   = "shutdown-time"
 )
 
 // Flags define the fields that will be passed via cmd
@@ -30,6 +32,7 @@ type Flags struct {
 	TargetHostName   string
 	LogLevel         string
 	Port             string
+	ShutdownTime   time.Duration
 }
 
 // WebBuilder defines the parametric information of a gohorse server instance
@@ -42,11 +45,12 @@ type WebBuilder struct {
 
 // AddFlags adds flags for Builder.
 func AddFlags(flags *pflag.FlagSet) {
-	flags.StringP(dockerAPIVersion, "v", api.DefaultVersion, "Version of Docker API")
-	flags.StringP(dockerSockURL, "u", client.DefaultDockerHost, "URL of Docker Socket")
+	flags.StringP(dockerAPIVersion, "v", api.DefaultVersion, "[optional] Version of Docker API. Defaults to " + api.DefaultVersion)
+	flags.StringP(dockerSockURL, "u", client.DefaultDockerHost, "[optional] URL of Docker Socket. Defaults to " + client.DefaultDockerHost)
 	flags.StringP(targetHostName, "n", "", "Target host name")
 	flags.StringP(logLevel, "l", "info", "[optional] Sets the Log Level to one of seven (trace, debug, info, warn, error, fatal, panic). Defaults to info")
-	flags.StringP(port, "p", ":8080", "Go Horse port. Defaults to :8080")
+	flags.StringP(port, "p", ":8080", "[optional] Go Horse port. Defaults to :8080")
+	flags.StringP(shutdownTime, "t", "5", "[optional] Sets the Graceful Shutdown wait time (seconds). Defaults to 5")
 }
 
 // InitFromWebBuilder initializes the web server builder with properties retrieved from Viper.
@@ -58,6 +62,7 @@ func (b *WebBuilder) InitFromViper(v *viper.Viper, filter *filters.FilterManager
 	flags.TargetHostName = v.GetString(targetHostName)
 	flags.LogLevel = v.GetString(logLevel)
 	flags.Port = v.GetString(port)
+	flags.ShutdownTime = v.GetDuration(shutdownTime)
 
 	flags.check()
 	flags.setLog()

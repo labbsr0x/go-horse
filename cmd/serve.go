@@ -20,7 +20,8 @@ var serveCmd = &cobra.Command{
   --target-host-name http://go-horse \
   --log-level info \
   --js-filters-path /app/go-horse/filters \
-  --go-plugins-path /app/go-horse/plugins
+  --go-plugins-path /app/go-horse/plugins \
+  --shutdown-time 5 \
 
 All command line options can be provided via environment variables by adding the prefix "GOHORSE_" 
 and converting their names to upper case and replacing punctuation and hyphen with underscores. 

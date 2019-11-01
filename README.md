@@ -79,8 +79,8 @@ go build
   --target-host-name http://go-horse \
   --log-level info \
   --js-filters-path /app/go-horse/filters \
-  --go-plugins-path /app/go-horse/plugins
-
+  --go-plugins-path /app/go-horse/plugins \
+  --shutdown-time 5 \
 ```
 
 #### 2.3 Environment variables
