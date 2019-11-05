@@ -3,11 +3,8 @@ package web
 import (
 	"fmt"
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"github.com/sirupsen/logrus"
 	"net/http"
-	"os"
 
 	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
 
@@ -22,7 +19,6 @@ const (
 	dockerSockURL    = "docker-sock-url"
 	targetHostName   = "target-host-name"
 	logLevel         = "log-level"
-	prettyLog        = "pretty-log"
 	port             = "port"
 )
 
@@ -32,7 +28,6 @@ type Flags struct {
 	DockerSockURL    string
 	TargetHostName   string
 	LogLevel         string
-	PrettyLog        bool // Bool or string ?
 	Port             string
 }
 
@@ -45,13 +40,11 @@ type WebBuilder struct {
 }
 
 // AddFlags adds flags for Builder.
-// TODO : Discuss shortcut name
 func AddFlags(flags *pflag.FlagSet) {
 	flags.StringP(dockerAPIVersion, "v", "1.39", "Version of Docker API")
 	flags.StringP(dockerSockURL, "u", "", "URL of Docker Socket")
 	flags.StringP(targetHostName, "n", "", "Target host name")
 	flags.StringP(logLevel, "l", "info", "[optional] Sets the Log Level to one of seven (trace, debug, info, warn, error, fatal, panic). Defaults to info")
-	flags.BoolP(prettyLog, "t", false, "Enable or disable pretty log. Defaults to false")
 	flags.StringP(port, "p", ":8080", "Go Horse port. Defaults to :8080")
 }
 
@@ -63,12 +56,10 @@ func (b *WebBuilder) InitFromViper(v *viper.Viper, filter *filters.FilterManager
 	flags.DockerSockURL = v.GetString(dockerSockURL)
 	flags.TargetHostName = v.GetString(targetHostName)
 	flags.LogLevel = v.GetString(logLevel)
-	flags.PrettyLog = v.GetBool(prettyLog)
 	flags.Port = v.GetString(port)
 
 	flags.check()
 	flags.setLog()
-
 
 	b.Flags = flags
 	b.DockerCli = b.getDockerCli()
@@ -81,7 +72,7 @@ func (b *WebBuilder) InitFromViper(v *viper.Viper, filter *filters.FilterManager
 func (flags *Flags) check() {
 
 
-	log.Info().Msgf("Flags", flags)
+	logrus.Infof("Web Flags: %v", flags)
 
 	haveEmptyRequiredFlags := flags.DockerSockURL == "" ||
 		flags.TargetHostName == ""
@@ -98,14 +89,17 @@ func (flags *Flags) check() {
 		}
 		panic(msg)
 	}
+
 }
 
 func (b *WebBuilder) getDockerCli() *client.Client {
 
 	dockerCli, err := client.NewClientWithOpts(client.WithVersion(b.Flags.DockerAPIVersion), client.WithHost(b.Flags.DockerSockURL))
+
 	if err != nil {
 		panic(err)
 	}
+
 	return dockerCli
 }
 
@@ -114,9 +108,15 @@ func (b *WebBuilder) getSocketClient() *http.Client {
 }
 
 func (f *Flags) setLog() {
-	zerolog.SetGlobalLevel(util.ParseLogLevel(f.LogLevel))
-	if f.PrettyLog {
-		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	} else {
+
+	level, err := logrus.ParseLevel(f.LogLevel)
+
+	if err != nil{
+		panic(err)
 	}
+	logrus.WithFields(logrus.Fields{
+		"Log Level": f.LogLevel,
+	}).Infof("Setting log level")
+
+	logrus.SetLevel(level)
 }

@@ -48,7 +48,7 @@ func (b *FilterBuilder) InitFromViper(v *viper.Viper) *FilterBuilder {
 
 func (flags *FlagsFilter) check() {
 
-	logrus.Infof("Flags: '%v'", flags)
+	logrus.Infof("Filter Flags: '%v'", flags)
 
 	haveEmptyRequiredFlags := flags.JsFiltersPath == "" || flags.GoPluginsPath == ""
 

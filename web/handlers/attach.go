@@ -3,12 +3,11 @@ package handlers
 import (
 	"context"
 	"fmt"
-
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
 	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
-	"github.com/rs/zerolog/log"
+	"github.com/sirupsen/logrus"
 )
 
 type AttachAPI interface {
@@ -42,7 +41,9 @@ func (dapi *DefaultAttachAPI) AttachHandler(ctx iris.Context) {
 	resp, err := dapi.DockerCli.ContainerAttach(context.Background(), ctx.Params().Get("containerId"), options)
 
 	if err != nil {
-		log.Error().Err(err).Msg("Error executing docker client # ContainerExecAttach")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error executing docker client # ContainerExecAttach")
 	}
 
 	msgs := make(chan []byte)
@@ -64,7 +65,9 @@ func (dapi *DefaultAttachAPI) AttachHandler(ctx iris.Context) {
 	ctx.ResetResponseWriter(writer)
 	conn, _, err := writer.Hijack()
 	if err != nil {
-		log.Error().Err(err).Msg("conn hijack failed")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("conn hijack failed")
 	}
 
 	conn.Write([]byte{})

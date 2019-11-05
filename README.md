@@ -78,7 +78,6 @@ go build
   --docker-sock-url unix:///var/run/docker.sock \
   --target-host-name http://go-horse \
   --log-level info \
-  --pretty-log true \
   --js-filters-path /app/go-horse/filters \
   --go-plugins-path /app/go-horse/plugins
 
@@ -92,7 +91,6 @@ Besides the self-explanatory variables, there are :
 
 | Env Var         | Type    | Description                                        |
 | --------------- |  -------| ---------------------------------------------------|
-| PRETTY_LOG      | boolean | logs by default are ~~ugly~~ in JSON format        |
 | JS_FILTER_PATH  | path    | where, in the images file system, are the js filter|
 | GO_PLUGINS_PATH | path    | where, in the images file system, are the go filters and the go plugins|
 

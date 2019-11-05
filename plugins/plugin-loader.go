@@ -1,13 +1,13 @@
 package plugins
 
 import (
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"plugin"
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"
-	"github.com/rs/zerolog/log"
 )
 
 // FilterPluginList filters
@@ -37,35 +37,51 @@ func Load(goPluginsPath string) []GoFilterDefinition {
 
 	files, err := ioutil.ReadDir(goPluginsPath)
 	if err != nil {
-		log.Error().Err(err).Str("dir", goPluginsPath).Msg("Could not load plugins from directory")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Could not load plugins from directory")
 	}
 
 	for _, file := range files {
 
-		log.Debug().Str("file", file.Name()).Msg("Loading plugin")
+		logrus.WithFields(logrus.Fields{
+			"file": file.Name(),
+		}).Debugf("Loading plugin")
 
 		plug, err := plugin.Open(goPluginsPath + "/" + file.Name())
 		if err != nil {
-			log.Error().Err(err).Str("plugin_path", goPluginsPath+"/"+file.Name()).Msg("Could not open plugin")
+			logrus.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"plugin_path": goPluginsPath+"/"+file.Name(),
+			}).Errorf("Could not open plugin")
 		}
 
 		symPlugin, err := plug.Lookup("Plugin")
 		if err != nil {
-			log.Error().Err(err).Str("plugin_path", goPluginsPath+"/"+file.Name()).Msg("Could not load plugin")
+			logrus.WithFields(logrus.Fields{
+				"error": err.Error(),
+				"plugin_path": goPluginsPath+"/"+file.Name(),
+			}).Errorf("Could not load plugin")
 		}
 
 		var filter GoFilterDefinition
 		filter, ok := symPlugin.(GoFilterDefinition)
 		if ok {
 			FilterPluginList = append(FilterPluginList, filter)
-			log.Debug().Str("plugin_name", filter.Config().Name).Str("type", "filter").Msg("Plugin loaded")
+			logrus.WithFields(logrus.Fields{
+				"plugin_name": filter.Config().Name,
+				"type": "filter",
+			}).Debugf("Plugin loaded")
 		}
 
 		var js JSContextInjection
 		js, ok = symPlugin.(JSContextInjection)
 		if ok {
 			JSPluginList = append(JSPluginList, js)
-			log.Debug().Str("plugin_name", js.Name()).Str("type", "js").Msg("Plugin loaded")
+			logrus.WithFields(logrus.Fields{
+				"plugin_name": js.Name(),
+				"type": "js",
+			}).Debugf("Plugin loaded")
 		}
 
 	}

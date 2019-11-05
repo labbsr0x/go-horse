@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
 
 	"github.com/kataras/iris"
-	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -33,8 +33,9 @@ func (dapi *DefaultProxyAPI) InitFromWebBuilder(webBuilder *web.WebBuilder) *Def
 }
 
 func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
-
-	log.Debug().Str("request", ctx.String()).Msg("Receiving")
+	logrus.WithFields(logrus.Fields{
+		"request": ctx.String(),
+	}).Debugf("Receiving")
 
 	u := ctx.Request().URL.ResolveReference(&url.URL{Path: ctx.Values().GetString("path"), RawQuery: ctx.Request().URL.RawQuery})
 	path := u.String()
@@ -42,19 +43,27 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 	request, newRequestError := http.NewRequest(ctx.Request().Method, dapi.Flags.TargetHostName+path, strings.NewReader(ctx.Values().GetString(RequestBodyKey)))
 
 	if newRequestError != nil {
-		log.Error().Str("request", ctx.String()).Err(newRequestError).Msg("Error creating a new request in main handler")
+		logrus.WithFields(logrus.Fields{
+			"request": ctx.String(),
+			"error": newRequestError.Error(),
+		}).Errorf("Error creating a new request in main handler")
 	}
 
 	for key, value := range ctx.Request().Header {
 		request.Header[key] = value
 	}
 
-	log.Debug().Msg("Executing request for URL : " + path + " ...")
+	logrus.WithFields(logrus.Fields{
+		"URL": path,
+	}).Debugf("Executing request for URL")
 
 	response, err := dapi.SockClient.Do(request)
 
 	if err != nil {
-		log.Error().Str("request", ctx.String()).Err(err).Msg("Error executing the request in main handler")
+		logrus.WithFields(logrus.Fields{
+			"request": ctx.String(),
+			"error": err.Error(),
+		}).Errorf("Error executing the request in main handle")
 		ctx.Next()
 		return
 	}
@@ -84,7 +93,10 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		ctx.WriteString("Error reading the response body - " + err.Error())
-		log.Error().Str("request", ctx.String()).Err(err).Msg("Error parsing response body in main handler")
+		logrus.WithFields(logrus.Fields{
+			"request": ctx.String(),
+			"error": err.Error(),
+		}).Errorf("Error parsing response body in main handler")
 	}
 
 	for key, value := range response.Header {
@@ -99,7 +111,9 @@ func (dapi *DefaultProxyAPI) ProxyHandler(ctx iris.Context) {
 	result, errr := dapi.Filter.RunResponseFilters(ctx, ResponseBodyKey)
 
 	if errr != nil {
-		log.Error().Err(errr).Msg("Error during the execution of RESPONSE filters")
+		logrus.WithFields(logrus.Fields{
+			"error": errr.Error(),
+		}).Errorf("Error during the execution of RESPONSE filters")
 		ctx.StopExecution()
 		return
 	}

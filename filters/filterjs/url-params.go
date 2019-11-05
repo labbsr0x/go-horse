@@ -3,9 +3,10 @@ package filterjs
 import (
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"
-	"github.com/rs/zerolog/log"
+	"github.com/sirupsen/logrus"
 	"strings"
 )
+
 
 func listURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	values := make(map[string]string)
@@ -15,7 +16,9 @@ func listURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.V
 
 	result, err := call.Otto.ToValue(values)
 	if err != nil {
-		log.Error().Err(err).Msg("Error parsing url-params map - js filter exec listToJSContext")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing url-params map - js filter exec listToJSContext")
 	}
 	return result
 }
@@ -23,14 +26,18 @@ func listURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.V
 func getURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	key, err := call.Argument(0).ToString()
 	if err != nil {
-		log.Error().Err(err).Msg("Error parsing addURLParamsFromJSContext key field - js filter exec")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing addURLParamsFromJSContext key field - js filter exec")
 	}
 
 	for k, v := range ctx.Request().URL.Query() {
 		if k == key {
 			result, err := otto.ToValue(strings.Join(v, ","))
 			if err != nil {
-				log.Error().Err(err).Msg("Error parsing requestScopeGetToJSContext function return - js filter exec")
+				logrus.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Errorf("Error parsing requestScopeGetToJSContext function return - js filter exec")
 			}
 			return result
 		}
@@ -41,7 +48,9 @@ func getURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.Va
 func delURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	key, err := call.Argument(0).ToString()
 	if err != nil {
-		log.Error().Err(err).Msg("Error parsing addURLParamsFromJSContext key field - js filter exec")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing addURLParamsFromJSContext key field - js filter exec")
 	}
 	ctx.Request().URL.Query().Del(key)
 	return otto.NullValue()
@@ -50,11 +59,15 @@ func delURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.Va
 func addURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	key, err := call.Argument(0).ToString()
 	if err != nil {
-		log.Error().Err(err).Msg("Error parsing addURLParamsFromJSContext key field - js filter exec")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing addURLParamsFromJSContext key field - js filter exec")
 	}
 	value, err := call.Argument(1).ToString()
 	if err != nil {
-		log.Error().Err(err).Msg("Error parsing addURLParamsFromJSContext value field - js filter exec")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing addURLParamsFromJSContext value field - js filter exec")
 	}
 
 	q := ctx.Request().URL.Query()
@@ -67,11 +80,15 @@ func addURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.Va
 func setURLParamsFromJSContext(ctx iris.Context, call otto.FunctionCall) otto.Value {
 	key, err := call.Argument(0).ToString()
 	if err != nil {
-		log.Error().Err(err).Msg("Error parsing addURLParamsFromJSContext key field - js filter exec")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing addURLParamsFromJSContext key field - js filter exec")
 	}
 	value, err := call.Argument(1).ToString()
 	if err != nil {
-		log.Error().Err(err).Msg("Error parsing addURLParamsFromJSContext value field - js filter exec")
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing addURLParamsFromJSContext value field - js filter exec")
 	}
 
 	q := ctx.Request().URL.Query()

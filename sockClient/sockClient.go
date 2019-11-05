@@ -3,12 +3,11 @@ package sockclient
 import (
 	"crypto/tls"
 	"errors"
+	"github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"net/url"
 	"time"
-
-	"github.com/rs/zerolog/log"
 )
 
 const defaultTimeout = 5 * time.Minute
@@ -28,7 +27,10 @@ func CheckRedirect(req *http.Request, via []*http.Request) error {
 func Get(u string) *http.Client {
 	url, err := url.Parse(u)
 	if err != nil {
-		log.Debug().Str("URL", url.RequestURI()).Err(err)
+		logrus.WithFields(logrus.Fields{
+			"URL": url.RequestURI(),
+			"type": "js",
+		}).Debugf("Client factory url")
 		return nil
 	}
 	transport := new(http.Transport)

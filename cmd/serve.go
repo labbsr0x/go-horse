@@ -19,7 +19,6 @@ var serveCmd = &cobra.Command{
   --docker-sock-url unix:///var/run/docker.sock \
   --target-host-name http://go-horse \
   --log-level info \
-  --pretty-log true \
   --js-filters-path /app/go-horse/filters \
   --go-plugins-path /app/go-horse/plugins
 
@@ -36,10 +35,11 @@ command line option                 environment variable
 
 		filterBuilder := new(filterConfig.FilterBuilder).InitFromViper(viper.GetViper())
 		filter := new(filters.FilterManager).InitFromFilterBuilder(filterBuilder)
-		filter.ListAPIs.Init()
 
 		webBuilder := new(webConfig.WebBuilder).InitFromViper(viper.GetViper(), filter)
 		server := new(web.Server).InitFromWebBuilder(webBuilder)
+
+		filter.ListAPIs.Init()
 
 		return server.Run()
 	},

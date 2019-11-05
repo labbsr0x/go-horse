@@ -3,6 +3,7 @@ package filterjs
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -13,8 +14,6 @@ import (
 
 	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
 	"github.com/kataras/iris"
-	"github.com/rs/zerolog/log"
-
 	"github.com/robertkrimen/otto"
 )
 
@@ -48,7 +47,7 @@ func (filterJs FilterJS) Exec(ctx iris.Context, body string) (model.FilterReturn
 
 	emptyBody, _ := js.Object("({})")
 	bodyParsed, _ := otto.ToValue(emptyBody)
-	var error error
+	var err error
 	var contentType string
 	var headers http.Header
 	if filterJs.Invoke == model.Request {
@@ -62,16 +61,20 @@ func (filterJs FilterJS) Exec(ctx iris.Context, body string) (model.FilterReturn
 		if body == "" {
 			body = "{}"
 		}
-		bodyParsed, error = js.Call("JSON.parse", nil, body)
-		if error != nil {
-			log.Error().Str("plugin_name", filterJs.Name).Err(error).Msg("Error parsing body string to JS object - js filter exec")
+		bodyParsed, err = js.Call("JSON.parse", nil, body)
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"plugin_name": filterJs.Name,
+			}).Errorf("Error parsing body string to JS object - js filter exec")
 			bodyParsed, _ = otto.ToValue(emptyBody)
 		}
 	}
 
-	operation, error := js.Object("({READ : 0, WRITE : 1})")
-	if error != nil {
-		log.Error().Str("plugin_name", filterJs.Name).Err(error).Msg("Error creating operation object - js filter exec")
+	operation, err := js.Object("({READ : 0, WRITE : 1})")
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"plugin_name": filterJs.Name,
+		}).Errorf("Error creating operation object - js filter exec")
 	}
 
 	urlParamsJsObj, _ := js.Object("({})")
@@ -102,19 +105,23 @@ func (filterJs FilterJS) Exec(ctx iris.Context, body string) (model.FilterReturn
 	pluginsJsObj, _ := js.Object("({})")
 
 	for _, jsPlugin := range plugins.JSPluginList {
-		error := pluginsJsObj.Set(jsPlugin.Name(), func(call otto.FunctionCall) otto.Value { return jsPlugin.Set(ctx, call) })
-		if error != nil {
-			log.Error().Str("plugin_name", jsPlugin.Name()).Err(error).Msg("Error on applying GO->JS plugin - js filter exec")
+		err := pluginsJsObj.Set(jsPlugin.Name(), func(call otto.FunctionCall) otto.Value { return jsPlugin.Set(ctx, call) })
+		if err != nil {
+			logrus.WithFields(logrus.Fields{
+				"plugin_name": jsPlugin.Name(),
+			}).Errorf("Error on applying GO->JS plugin - js filter exec")
 		}
 	}
 
 	js.Set("plugins", pluginsJsObj)
 
-	returnValue, error := js.Run("(" + filterJs.Function + ")(ctx, plugins)")
+	returnValue, err := js.Run("(" + filterJs.Function + ")(ctx, plugins)")
 
-	if error != nil {
-		log.Error().Str("plugin_name", filterJs.Name).Err(error).Msg("Error executing filter - js filter exec")
-		return model.FilterReturn{Next: false, Body: "{\"message\" : \"Error from docker daemon proxy go-horse : \"" + error.Error() + "}"}, error
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"plugin_name": filterJs.Name,
+		}).Errorf("plugin_name: %v | Error executing filter - js filter exec")
+		return model.FilterReturn{Next: false, Body: "{\"message\" : \"Error from docker daemon proxy go-horse : \"" + err.Error() + "}"}, err
 	}
 
 	result := returnValue.Object()
@@ -125,40 +132,40 @@ func (filterJs FilterJS) Exec(ctx iris.Context, body string) (model.FilterReturn
 		if value, err := value.ToBoolean(); err == nil {
 			jsFunctionReturn.Next = value
 		} else {
-			return errorReturnFilter(error)
+			return errorReturnFilter(err)
 		}
 	} else {
-		return errorReturnFilter(error)
+		return errorReturnFilter(err)
 	}
 
 	if value, err := result.Get("body"); err == nil {
 		if value, err := js.Call("JSON.stringify", nil, value); err == nil {
 			jsFunctionReturn.Body = value.String()
 		} else {
-			return errorReturnFilter(error)
+			return errorReturnFilter(err)
 		}
 	} else {
-		return errorReturnFilter(error)
+		return errorReturnFilter(err)
 	}
 
 	if value, err := result.Get("operation"); err == nil {
 		if value, err := value.ToInteger(); err == nil {
 			jsFunctionReturn.Operation = model.BodyOperation(value)
 		} else {
-			return errorReturnFilter(error)
+			return errorReturnFilter(err)
 		}
 	} else {
-		return errorReturnFilter(error)
+		return errorReturnFilter(err)
 	}
 
 	if value, err := result.Get("status"); err == nil {
 		if value, err := value.ToInteger(); err == nil {
 			jsFunctionReturn.Status = int(value)
 		} else {
-			return errorReturnFilter(error)
+			return errorReturnFilter(err)
 		}
 	} else {
-		return errorReturnFilter(error)
+		return errorReturnFilter(err)
 	}
 
 	if value, err := result.Get("error"); err == nil {
@@ -166,67 +173,95 @@ func (filterJs FilterJS) Exec(ctx iris.Context, body string) (model.FilterReturn
 			if value, err := value.ToString(); err == nil {
 				jsFunctionReturn.Err = errors.New(value)
 			} else {
-				return errorReturnFilter(error)
+				return errorReturnFilter(err)
 			}
 		}
 	} else {
-		return errorReturnFilter(error)
+		return errorReturnFilter(err)
 	}
 	// weird
 	return jsFunctionReturn, jsFunctionReturn.Err
 }
 
-func errorReturnFilter(error error) (model.FilterReturn, error) {
-	log.Error().Err(error).Msg("Error parsing filter return value - js filter exec")
-	return model.FilterReturn{Body: "{\"message\" : \"Proxy error : \"" + error.Error() + "}"}, error
+func errorReturnFilter(err error) (model.FilterReturn, error) {
+	logrus.WithFields(logrus.Fields{
+		"error": err.Error(),
+	}).Errorf("Error parsing filter return value - js filter exec")
+	return model.FilterReturn{Body: "{\"message\" : \"Proxy error : \"" + err.Error() + "}"}, err
 }
 
 func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
-	method, error := call.Argument(0).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext method - js filter exec")
+
+	method, err := call.Argument(0).ToString()
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing httpRequestTOJSContext method - js filter exec")
 	}
-	url, error := call.Argument(1).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext url - js filter exec")
+
+	url, err := call.Argument(1).ToString()
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing httpRequestTOJSContext url - js filter exec")
 	}
-	body, error := call.Argument(2).ToString()
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext body - js filter exec")
+
+	body, err := call.Argument(2).ToString()
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing httpRequestTOJSContext body - js filter exec")
 	}
+
 	var req *http.Request
-	var err interface{}
 
 	if method == "GET" {
 		req, err = http.NewRequest(method, url, nil)
 		if err != nil {
-			log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext GET header - js filter exec")
+			logrus.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Errorf("Error parsing httpRequestTOJSContext GET header - js filter exec")
 		}
 	} else {
 		req, err = http.NewRequest(method, url, strings.NewReader(body))
 		if err != nil {
-			log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext OTHER THAN GET header - js filter exec")
+			logrus.WithFields(logrus.Fields{
+				"error": err.Error(),
+			}).Errorf("Error parsing httpRequestTOJSContext OTHER THAN GET header - js filter exec")
 		}
 	}
 
 	headers := call.Argument(3).Object()
 	if headers != nil {
 		for _, key := range headers.Keys() {
-			header, error := headers.Get(key)
-			if error != nil {
-				log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext GET header - js filter exec")
+			header, err := headers.Get(key)
+			if err != nil {
+				logrus.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Errorf("Error parsing httpRequestTOJSContext GET header - js filter exec")
 			}
-			headerValue, error := header.ToString()
-			if error != nil {
-				log.Error().Err(error).Msg("Error parsing httpRequestTOJSContext GET header - js filter exec")
+			headerValue, err := header.ToString()
+			if err != nil {
+				logrus.WithFields(logrus.Fields{
+					"error": err.Error(),
+				}).Errorf("Error parsing httpRequestTOJSContext GET header - js filter exec")
 			}
 			req.Header.Add(key, headerValue)
 		}
 	}
-	log.Debug().Str("method", method).Str("url", url).Str("body", body).Str("headers", fmt.Sprintf("%#v", headers)).Msg("Request parameters")
+
+	logrus.WithFields(logrus.Fields{
+		"method": method,
+		"url": url,
+		"body": body,
+		"headers": fmt.Sprintf("%#v", headers),
+	}).Infof("Request parameters")
+
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Error().Msg("Error executing the request - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error executing the request - httpRequestTOJSContext")
 		response, _ := call.Otto.Object("({})")
 		buf, marshalError := json.Marshal(err)
 		if marshalError == nil {
@@ -245,19 +280,25 @@ func httpRequestTOJSContext(call otto.FunctionCall) otto.Value {
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Error().Msg("Error parsing request body - httpRequestTOJSContext " + fmt.Sprintf("%#v", err))
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing request body - httpRequestTOJSContext ")
 	}
 
 	response, _ := call.Otto.Object("({})")
 
-	bodyObjectJs, error := call.Otto.ToValue(string(bodyBytes))
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing response body to JS object - httpRequestTOJSContext")
+	bodyObjectJs, err := call.Otto.ToValue(string(bodyBytes))
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing response body to JS object - httpRequestTOJSContext")
 	}
 
-	headersObjectJs, error := call.Otto.ToValue(resp.Header)
-	if error != nil {
-		log.Error().Err(error).Msg("Error parsing response headers to JS object - httpRequestTOJSContext")
+	headersObjectJs, err := call.Otto.ToValue(resp.Header)
+	if err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err.Error(),
+		}).Errorf("Error parsing response headers to JS object - httpRequestTOJSContext")
 	}
 
 	response.Set("body", bodyObjectJs)
