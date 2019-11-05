@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
+	"github.com/labbsr0x/go-horse/filters/model"
 	"github.com/robertkrimen/otto"
 )
 

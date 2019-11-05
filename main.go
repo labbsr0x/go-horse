@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/cmd"
+	"github.com/labbsr0x/go-horse/cmd"
 )
 
 func main() {

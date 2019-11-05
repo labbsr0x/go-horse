@@ -1,4 +1,5 @@
 # Start from the latest golang base image
+# Start from the latest golang base image
 FROM golang:latest
 
 # Set the Current Working Directory inside the container
@@ -19,8 +20,8 @@ EXPOSE 8080
 RUN GIT_COMMIT=$(git rev-parse --short HEAD 2> /dev/null || true) \
  && BUILDTIME=$(TZ=UTC date -u '+%Y-%m-%dT%H:%M:%SZ') \
  && CGO_ENABLED=0 GOOS=linux go build --ldflags "-s -w \
-    -X gitex.labbs.com.br/labbsr0x/proxy/go-horse/config.GitCommit=${GIT_COMMIT} \
-    -X gitex.labbs.com.br/labbsr0x/proxy/go-horse/config.BuildTime=${BUILDTIME}" \
+    -X github.com/labbsr0x/go-horse/config.GitCommit=${GIT_COMMIT} \
+    -X github.com/labbsr0x/go-horse/config.BuildTime=${BUILDTIME}" \
     -a -installsuffix cgo -o /main
 
 FROM scratch

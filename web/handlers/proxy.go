@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
-	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
+	"github.com/labbsr0x/go-horse/filters/model"
+	web "github.com/labbsr0x/go-horse/web/config-web"
 
 	"github.com/kataras/iris"
 )

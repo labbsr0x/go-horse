@@ -1,7 +1,7 @@
 package filterjs
 
 import (
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
+	"github.com/labbsr0x/go-horse/util"
 	"github.com/kataras/iris"
 	"github.com/robertkrimen/otto"
 	"github.com/sirupsen/logrus"

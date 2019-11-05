@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
+	"github.com/labbsr0x/go-horse/web/config-web"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/ioutils"

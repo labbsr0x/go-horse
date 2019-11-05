@@ -2,10 +2,10 @@ package web
 
 import (
 	stdContext "context"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
-	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/handlers"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/middleware"
+	"github.com/labbsr0x/go-horse/prometheus"
+	web "github.com/labbsr0x/go-horse/web/config-web"
+	"github.com/labbsr0x/go-horse/web/handlers"
+	"github.com/labbsr0x/go-horse/web/middleware"
 	"github.com/kataras/iris"
 	"github.com/kataras/iris/middleware/recover"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

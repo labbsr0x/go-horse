@@ -12,9 +12,9 @@ import (
 
 	"github.com/tidwall/gjson"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/list"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
+	"github.com/labbsr0x/go-horse/filters/list"
+	"github.com/labbsr0x/go-horse/web"
+	"github.com/labbsr0x/go-horse/web/config-web"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/spf13/viper"
 	"gotest.tools/icmd"

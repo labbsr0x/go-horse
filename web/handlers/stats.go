@@ -6,9 +6,9 @@ import (
 	"io"
 	"time"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
+	"github.com/labbsr0x/go-horse/web/config-web"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
+	"github.com/labbsr0x/go-horse/util"
 	"github.com/kataras/iris"
 )
 

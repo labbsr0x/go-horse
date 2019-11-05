@@ -253,7 +253,7 @@ package main
 import (
 	"fmt"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
+	"github.com/labbsr0x/go-horse/filters/model"
 	"github.com/kataras/iris"
 )
 
@@ -332,7 +332,7 @@ package main
 import (
 	"fmt"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
+	"github.com/labbsr0x/go-horse/filters/model"
 	"github.com/kataras/iris"
 	"github.com/tidwall/sjson"
 )

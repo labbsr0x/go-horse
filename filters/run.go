@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	filter "gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/config-filter"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/list"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/prometheus"
+	filter "github.com/labbsr0x/go-horse/filters/config-filter"
+	"github.com/labbsr0x/go-horse/filters/list"
+	"github.com/labbsr0x/go-horse/filters/model"
+	"github.com/labbsr0x/go-horse/prometheus"
 	"github.com/kataras/iris"
 )
 

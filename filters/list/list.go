@@ -3,17 +3,17 @@ package list
 import (
 	"github.com/sirupsen/logrus"
 
-	filter "gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/config-filter"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filtergo"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/filterjs"
+	filter "github.com/labbsr0x/go-horse/filters/config-filter"
+	"github.com/labbsr0x/go-horse/filters/filtergo"
+	"github.com/labbsr0x/go-horse/filters/filterjs"
 
 	"sort"
 	"sync"
 	"time"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/plugins"
+	"github.com/labbsr0x/go-horse/plugins"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/model"
+	"github.com/labbsr0x/go-horse/filters/model"
 	"github.com/radovskyb/watcher"
 )
 

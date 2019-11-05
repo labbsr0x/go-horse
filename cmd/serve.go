@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
-	filterConfig "gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters/config-filter"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/web"
-	webConfig "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
+	"github.com/labbsr0x/go-horse/filters"
+	filterConfig "github.com/labbsr0x/go-horse/filters/config-filter"
+	"github.com/labbsr0x/go-horse/web"
+	webConfig "github.com/labbsr0x/go-horse/web/config-web"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

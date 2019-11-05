@@ -2,13 +2,13 @@ package web
 
 import (
 	"fmt"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
+	"github.com/labbsr0x/go-horse/filters"
 	"github.com/docker/docker/api"
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"time"
 
-	sockclient "gitex.labbs.com.br/labbsr0x/proxy/go-horse/sockClient"
+	sockclient "github.com/labbsr0x/go-horse/sockClient"
 
 	"github.com/docker/docker/client"
 	"github.com/spf13/pflag"

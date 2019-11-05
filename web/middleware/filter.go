@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/filters"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
+	"github.com/labbsr0x/go-horse/filters"
+	"github.com/labbsr0x/go-horse/util"
 	"github.com/kataras/iris/context"
 	"github.com/sirupsen/logrus"
 	"io/ioutil"

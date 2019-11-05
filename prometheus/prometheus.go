@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"time"
 
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/version"
+	"github.com/labbsr0x/go-horse/version"
 
 	"github.com/kataras/iris/context"
 	"github.com/prometheus/client_golang/prometheus"

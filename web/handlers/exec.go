@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"io"
 
-	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
+	web "github.com/labbsr0x/go-horse/web/config-web"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
 )

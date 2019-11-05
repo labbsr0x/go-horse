@@ -3,8 +3,8 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"gitex.labbs.com.br/labbsr0x/proxy/go-horse/util"
-	web "gitex.labbs.com.br/labbsr0x/proxy/go-horse/web/config-web"
+	"github.com/labbsr0x/go-horse/util"
+	web "github.com/labbsr0x/go-horse/web/config-web"
 	"github.com/docker/docker/api/types"
 	"github.com/kataras/iris"
 	"github.com/sirupsen/logrus"
