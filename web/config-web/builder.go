@@ -40,7 +40,7 @@ type WebBuilder struct {
 	*Flags
 	DockerCli  *client.Client
 	SockClient *http.Client
-	Filter *filters.FilterManager
+	Filter     *filters.FilterManager
 }
 
 // AddFlags adds flags for Builder.
