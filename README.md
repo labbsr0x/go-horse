@@ -211,9 +211,7 @@ All env vars are available in javascript filters scope. You can list them by cal
 
 **WARNING** this may change soon. We are not comfortable with this solution as is.
 
-The routes are duplicated, one version with a `/token/{token}` prefixed and another version without the token prefix.
-
-In our case, this was used in conjunction with a CLI that logs the user in and changes the DOCKER_HOST env var in the user machine to our go-horse address with the token added in its path. The first filter - with order equals 0, extract the token, validates the user and rewrite the URL calling `ctx.values.set('path', '<tokenless_url>')`.
+Authentication should be handled by **filters**. The authentication token must be sent to Go Horse Proxy by query parameter or request headers.
 
 Another possible solution, and more elegant - I think, is to insert a token as a header in all docker CLI commands requests. This can be achieved by editing /~/.docker/config.json file, inserting the property `"HttpHeaders": { "token": "?" },`. The request to docker daemon will carry the token in its headers and a filter can read and validate it - sending a request to an identity manager? Maybe.
 
