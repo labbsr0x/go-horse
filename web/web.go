@@ -63,16 +63,6 @@ func (s *Server) Run() error {
 
 	app.Use(middleware.ResquestFilter(s.Filter))
 
-	//TODO mapear rota para receber token ou nao
-	authToken := app.Party("/token/{token:string}/")
-	authToken.Post("/{version:string}/containers/{containerId:string}/attach", s.AttachAPIs.AttachHandler)
-	authToken.Get("/{version:string}/containers/{id:string}/logs", s.LogsAPIs.LogsHandler).Name = "container-logs"
-	authToken.Get("/{version:string}/services/{id:string}/logs", s.LogsAPIs.LogsHandler).Name = "service-logs"
-	authToken.Post("/{version:string}/containers/{containerId:string}/wait", s.WaitAPIs.WaitHandler)
-	authToken.Post("/{version:string}/exec/{execInstanceId:string}/start", s.ExecAPIs.ExecHandler)
-	authToken.Get("/{version:string}/containers/{containerId:string}/stats", s.StatsAPIs.StatsHandler)
-	authToken.Get("/{version:string}/events", s.EventsAPIs.EventsHandler)
-
 	app.Post("/{version:string}/containers/{containerId:string}/attach", s.AttachAPIs.AttachHandler)
 	app.Get("/{version:string}/containers/{id:string}/logs", s.LogsAPIs.LogsHandler).Name = "container-logs"
 	app.Get("/{version:string}/services/{id:string}/logs", s.LogsAPIs.LogsHandler).Name = "service-logs"
